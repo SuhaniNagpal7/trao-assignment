@@ -1,0 +1,36 @@
+import { test, expect } from '@playwright/test';
+
+test('production HTTPS proxy, sessions, ownership, persisted queue and missing-key failure', async ({ page, baseURL, browser }) => {
+  expect((await page.request.get('/api/health/ready')).status()).toBe(200);
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Welcome back.', exact: true })).toBeVisible();
+  const credentials = { name: 'Deployment check', email: `deploy-${Date.now()}@example.com`, password: 'isolated-smoke-password-123' };
+  const registered = await page.request.post('/api/auth/register', { headers: { Origin: baseURL! }, data: credentials });
+  expect(registered.status()).toBe(201);
+  const auth = await registered.json();
+  const cookie = (await page.context().cookies()).find(c => c.name === 'prep_session');
+  expect(cookie?.secure).toBe(true); expect(cookie?.httpOnly).toBe(true); expect(cookie?.sameSite).toBe('Lax');
+  expect(registered.headers()['cache-control']).toBe('no-store');
+  const payload = { title: 'Production smoke course', jd: 'Python required.', company_url: 'https://example.com', days: 14, daily_minutes: 120 };
+  const headers = { Origin: baseURL!, 'X-CSRF-Token': auth.csrf_token };
+  expect((await page.request.post('/api/courses', { headers: { Origin: baseURL! }, data: payload })).status()).toBe(403);
+  const created = await page.request.post('/api/courses', { headers, data: payload });
+  expect(created.status()).toBe(201);
+  const { course } = await created.json();
+  await page.goto(`/courses/${course.id}`);
+  await expect(page.getByRole('heading', { name: payload.title, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start generation' }).click();
+  await expect.poll(async () => (await (await page.request.get(`/api/courses/${course.id}/jobs`)).json()).jobs[0]?.status, { timeout: 60000 }).toBe('blocked');
+  await page.reload();
+  await expect(page.getByRole('status').filter({ hasText: 'configured OpenAI provider' })).toBeVisible();
+  await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible();
+  const other = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
+  const response = await other.request.get(`/api/courses/${course.id}`);
+  expect(response.status()).toBe(401);
+  await other.close();
+  expect((await page.request.post('/api/auth/logout', { headers })).status()).toBe(204);
+  expect((await page.request.get('/api/auth/me')).status()).toBe(401);
+  const signedBack = await page.request.post('/api/auth/login', { headers: { Origin: baseURL! }, data: { email: credentials.email, password: credentials.password } });
+  expect(signedBack.status()).toBe(200);
+  expect((await (await page.request.get(`/api/courses/${course.id}`)).json()).course.id).toBe(course.id);
+});

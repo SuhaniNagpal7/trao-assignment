@@ -1,0 +1,14 @@
+[
+  {
+    "id": "frontend-role",
+    "jd": "Frontend Engineer. Required: React, TypeScript, accessible interfaces. Bonus: mentoring experience.",
+    "company_url": "https://example.com",
+    "days": 14
+  },
+  {
+    "id": "backend-role",
+    "jd": "Backend Engineer. Required: Python, SQL, API design. Responsibilities include reviewing code and collaborating with product teams.",
+    "company_url": "https://example.org",
+    "days": 7
+  }
+]

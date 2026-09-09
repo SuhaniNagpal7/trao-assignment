@@ -1,0 +1,18 @@
+name: Verify assessment stack
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm}
+      - run: npm run setup
+      - run: docker compose up -d --wait
+      - run: npm run typecheck
+      - run: npm run test --workspace backend
+      - run: npm run build
+      - run: docker build -f backend/Dockerfile -t ahead-backend:test .
+      - run: docker build -f frontend/Dockerfile -t ahead-frontend:test .
+      - if: always()
+        run: docker compose down --volumes

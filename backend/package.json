@@ -1,0 +1,36 @@
+{
+  "name": "@ahead/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "worker": "tsx src/worker.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests-ts/*.test.ts",
+    "evaluate": "tsx src/evaluate.ts",
+    "migrate:sqlite": "tsx src/migrate-sqlite.ts"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "ipaddr.js": "^2.2.0",
+    "mongodb": "^6.20.0",
+    "robots-parser": "^3.0.1",
+    "undici": "^7.16.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.0"
+  }
+}

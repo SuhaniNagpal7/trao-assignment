@@ -1,0 +1,21 @@
+{
+  "name": "interview-workspace",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "backend": "npm run dev --workspace backend",
+    "worker": "npm run worker --workspace backend",
+    "test": "npm run test --workspace backend",
+    "setup": "node scripts/setup.mjs",
+    "evaluate": "node scripts/evaluate.mjs"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}

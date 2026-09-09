@@ -1,0 +1,59 @@
+name: ahead
+x-backend: &backend
+  build:
+    context: ..
+    dockerfile: backend/Dockerfile
+  image: ahead-backend:local
+  environment: &environment
+    APP_ENV: production
+    PORT: 8000
+    MONGODB_URI: ${MONGODB_URI:?Set an authenticated MongoDB Atlas replica-set URI}
+    MONGODB_DATABASE: ${MONGODB_DATABASE:-ahead}
+    ALLOWED_ORIGINS: https://${APP_DOMAIN:?Set the public app domain}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    OPENAI_RPM: ${OPENAI_RPM:-10}
+    OPENAI_TPM: ${OPENAI_TPM:-30000}
+    TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  init: true
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+services:
+  api:
+    <<: *backend
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  worker:
+    <<: *backend
+    command: [node, backend/dist/worker.js]
+    stop_grace_period: 95s
+    depends_on:
+      api: {condition: service_healthy}
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    image: ahead-frontend:local
+    init: true
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  proxy:
+    image: caddy:2-alpine
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set the public app domain}
+    ports: ['80:80', '443:443']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+    depends_on: [frontend]
+    restart: unless-stopped
+volumes:
+  certificates:
+  caddy_config:
