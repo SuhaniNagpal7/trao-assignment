@@ -33,6 +33,21 @@ if (
   settings.origins.some((o) => !o.startsWith("https://"))
 )
   throw new Error("Production requires HTTPS origins.");
+// An ALLOWED_ORIGINS entry may contain "*" to match one URL segment, e.g.
+// https://*-team.vercel.app covers every deployment and branch URL a Vercel
+// project produces without listing each hash.
+export function originAllowed(origin: string | null | undefined): boolean {
+  if (!origin) return false;
+  return settings.origins.some((pattern) => {
+    if (pattern === origin) return true;
+    if (!pattern.includes("*")) return false;
+    const source = pattern
+      .split("*")
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("[A-Za-z0-9-]+");
+    return new RegExp(`^${source}$`).test(origin);
+  });
+}
 if (
   ![settings.rpm, settings.tpm, settings.jobTimeout].every(
     (n) => Number.isFinite(n) && n > 0,

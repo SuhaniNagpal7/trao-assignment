@@ -6,7 +6,26 @@ import { saveEdit, mergeGenerated } from "../src/editing.js";
 import { allocate, cardOrder, summary } from "../src/study-plan.js";
 import { practiceCommand, commandSchema } from "../src/practice.js";
 import { publicAddress } from "../src/research.js";
+import { settings, originAllowed } from "../src/config.js";
 import { kit, course, lessonFixture } from "./fixture.js";
+test("origin allowlist matches exact entries and single-segment wildcards", () => {
+  const saved = settings.origins;
+  settings.origins = [
+    "https://app.example.com",
+    "https://*-team.vercel.app",
+  ];
+  try {
+    assert.equal(originAllowed("https://app.example.com"), true);
+    assert.equal(originAllowed("https://frontend-team.vercel.app"), true);
+    assert.equal(originAllowed("https://frontend-abc123-team.vercel.app"), true);
+    assert.equal(originAllowed("https://evil.com"), false);
+    assert.equal(originAllowed("https://team.vercel.app.evil.com"), false);
+    assert.equal(originAllowed(undefined), false);
+    assert.equal(originAllowed(""), false);
+  } finally {
+    settings.origins = saved;
+  }
+});
 test("valid Appendix A contract, stable references and coverage", () =>
   assert.equal(validateKit(kit()).questions.length, 2));
 for (const kind of [

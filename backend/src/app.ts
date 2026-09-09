@@ -9,7 +9,7 @@ import {
 import { hash, verify } from "@node-rs/argon2";
 import { z, ZodError } from "zod";
 import { collection, transaction, db } from "./db.js";
-import { settings } from "./config.js";
+import { settings, originAllowed } from "./config.js";
 import { AppError, conflict } from "./errors.js";
 import {
   registration,
@@ -85,7 +85,7 @@ app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   const origin = req.headers.origin;
-  if (origin && settings.origins.includes(origin)) {
+  if (origin && originAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Vary", "Origin");
@@ -98,7 +98,7 @@ app.use((req, res, next) => {
   }
   if (
     ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
-    (!origin || !settings.origins.includes(origin))
+    !originAllowed(origin)
   ) {
     next(
       new AppError(403, "ORIGIN_REJECTED", "Request origin is not allowed."),
