@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { OpenAI, type Llm } from "../src/provider.js";
+import { Gemini, type Llm } from "../src/provider.js";
 import { settings } from "../src/config.js";
 import { generateKit, generateQuestions, steps } from "../src/pipeline.js";
 import { courseInput } from "../src/schemas.js";
@@ -241,39 +241,33 @@ test("batch continues after a failure and writes exact Appendix B for a thin JD"
     await rm(dir, { recursive: true });
   }
 });
-test("OpenAI retries malformed JSON, authenticates using a header, and validates output", async () => {
-  const old = settings.openaiKey;
-  settings.openaiKey = "fixture-only";
+test("Gemini retries malformed JSON, authenticates using a header, and validates output", async () => {
+  const old = settings.geminiKey;
+  settings.geminiKey = "fixture-only";
   let calls = 0;
   try {
     const transport: typeof fetch = async (_url, options) => {
-      assert.equal(_url, "https://api.openai.com/v1/responses");
       assert.equal(
-        (options!.headers as any).Authorization,
-        "Bearer fixture-only",
+        _url,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.model)}:generateContent`,
       );
-      assert.equal(JSON.parse(String(options!.body)).store, false);
+      assert.equal((options!.headers as any)["x-goog-api-key"], "fixture-only");
       assert.match(String(options!.body), /output_schema/);
       calls++;
       return new Response(
         JSON.stringify({
-          status: "completed",
-          output: [
+          candidates: [
             {
-              type: "message",
-              content: [
-                {
-                  type: "output_text",
-                  text: calls === 1 ? "invalid" : '{"answer":"ok"}',
-                },
-              ],
+              content: {
+                parts: [{ text: calls === 1 ? "invalid" : '{"answer":"ok"}' }],
+              },
             },
           ],
         }),
         { status: 200 },
       );
     };
-    const gemini = new OpenAI(async () => {}, transport);
+    const gemini = new Gemini(async () => {}, transport);
     assert.deepEqual(
       await gemini.json(
         z.object({ answer: z.string() }),
@@ -285,15 +279,15 @@ test("OpenAI retries malformed JSON, authenticates using a header, and validates
     );
     assert.equal(calls, 2);
   } finally {
-    settings.openaiKey = old;
+    settings.geminiKey = old;
   }
 });
-test("OpenAI rate-limit response respects deadline and never falls back to another provider", async () => {
-  const old = settings.openaiKey;
-  settings.openaiKey = "fixture-only";
+test("Gemini rate-limit response respects deadline and never falls back to another provider", async () => {
+  const old = settings.geminiKey;
+  settings.geminiKey = "fixture-only";
   let calls = 0;
   try {
-    const gemini = new OpenAI(
+    const gemini = new Gemini(
       async () => {},
       async () => {
         calls++;
@@ -309,7 +303,7 @@ test("OpenAI rate-limit response respects deadline and never falls back to anoth
     );
     assert.equal(calls, 1);
   } finally {
-    settings.openaiKey = old;
+    settings.geminiKey = old;
   }
 });
 

@@ -20,7 +20,7 @@ test('record the real application walkthrough', async ({ browser, request }) => 
     await page.waitForTimeout(seconds * 1000);
   }
   await page.goto('/');
-  await caption('Ahead: a separate preparation course for every interview. This demo uses fictional company fixtures and real OpenAI-generated content.', 15);
+  await caption('Ahead: a separate preparation course for every interview. This demo uses fictional company fixtures and real Gemini-generated content.', 15);
   await page.getByRole('link', { name: 'New course', exact: true }).click();
   await caption('Paste a job description or upload a PDF to extract it. Review the company details and set your preparation time. JSON is optional for bulk imports.', 14);
   await page.goto(`/courses/${course.id}`);
@@ -29,7 +29,7 @@ test('record the real application walkthrough', async ({ browser, request }) => 
   await caption('Scheduling and coverage are application code, not model guesses. Every required topic must have a question and appear in the schedule.', 13);
   const generation = page.getByRole('region', { name: 'Course generation', exact: true });
   await generation.scrollIntoViewIfNeeded();
-  await caption('A controlled coverage test: one topic’s initial questions were withheld. The real checker found the gap, OpenAI repaired it, and validation passed. These are saved execution logs.', 22);
+  await caption('A controlled coverage test: one topic’s initial questions were withheld. The real checker found the gap, Gemini repaired it, and validation passed. These are saved execution logs.', 22);
   await page.getByRole('button', { name: 'Edit course', exact: true }).click();
   await page.getByRole('tab', { name: 'Questions', exact: true }).click();
   const first = page.getByRole('article', { name: 'Question 1', exact: true });

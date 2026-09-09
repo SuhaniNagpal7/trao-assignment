@@ -11,7 +11,7 @@ import {
   brief,
   validateKit,
 } from "./schemas.js";
-import { OpenAI, type Llm } from "./provider.js";
+import { Gemini, type Llm } from "./provider.js";
 import { crawlCompany, searchInterviews } from "./research.js";
 import { AppError, deadlineCheck } from "./errors.js";
 export const stableId = (prefix: string, ...parts: string[]) =>
@@ -470,7 +470,7 @@ export async function generateKit(
     input,
     outputs: {},
     deadline: options.deadline || Date.now() + 600000,
-    llm: options.llm || new OpenAI(),
+    llm: options.llm || new Gemini(),
     allowLocal: options.allowLocal,
   };
   for (const step of steps) {

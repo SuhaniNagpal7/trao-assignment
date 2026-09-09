@@ -10,10 +10,10 @@ x-backend: &backend
     MONGODB_URI: ${MONGODB_URI:?Set an authenticated MongoDB Atlas replica-set URI}
     MONGODB_DATABASE: ${MONGODB_DATABASE:-ahead}
     ALLOWED_ORIGINS: https://${APP_DOMAIN:?Set the public app domain}
-    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
-    OPENAI_RPM: ${OPENAI_RPM:-10}
-    OPENAI_TPM: ${OPENAI_TPM:-30000}
+    GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+    GEMINI_RPM: ${GEMINI_RPM:-10}
+    GEMINI_TPM: ${GEMINI_TPM:-250000}
     TAVILY_API_KEY: ${TAVILY_API_KEY:-}
     YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
   init: true

@@ -58,7 +58,7 @@ test('register, save multiple courses, edit, import, refresh, and sign back in',
   await page.getByRole('button', { name: 'Start generation', exact: true }).click();
   await page.reload();
   await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText('Job analysis needs a configured OpenAI provider. Ask the administrator to configure OPENAI_API_KEY, then retry this run.', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Job analysis needs a configured Gemini provider. Ask the administrator to configure GEMINI_API_KEY, then retry this run.', { exact: true }).first()).toBeVisible();
   const history = page.locator('.generation-logs li');
   await expect(history).toHaveCount(8);
   await page.reload();

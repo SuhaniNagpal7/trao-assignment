@@ -10,12 +10,12 @@ Ahead turns a job description, company website, interview date and daily study a
 | Backend | Node.js 24, Express 5, TypeScript |
 | Database | MongoDB 8 replica set locally; MongoDB Atlas for hosting |
 | Scraping | TypeScript, Cheerio, Undici, robots-parser |
-| LLM | OpenAI Developer API, default `gpt-4.1-mini` |
+| LLM | Google Gemini API (AI Studio free tier), default `gemini-flash-latest` |
 | Validation | Zod schemas and deterministic reference/coverage checks |
 
-The application no longer requires Python, FastAPI, SQLAlchemy, PostgreSQL, or Gemini. The optional one-time data importer uses Node's built-in SQLite reader to copy the former database into MongoDB; SQLite is not an application datastore.
+The application no longer requires Python, FastAPI, SQLAlchemy, or PostgreSQL. The optional one-time data importer uses Node's built-in SQLite reader to copy the former database into MongoDB; SQLite is not an application datastore.
 
-OpenAI is enabled at the user's request using the existing server-side key. This temporarily deviates from the assessment's genuine-free-tier LLM preference. The rest of the application follows the assessment stack. Requests use the [OpenAI Responses API](https://developers.openai.com/api/reference/cli/resources/responses/methods/create), with response storage disabled and local Zod validation.
+Gemini has a genuine free tier: an API key from [Google AI Studio](https://aistudio.google.com/apikey) needs no credit card, and `gemini-flash-latest` (the alias for the current free-tier flash model) covers this pipeline within the free per-minute and per-day limits. Requests use the [`generateContent` REST endpoint](https://ai.google.dev/gemini-api/docs) with `responseMimeType: application/json`, thinking disabled for deterministic structured output, and local Zod validation. Free-tier inputs may be used by Google to improve their products; only public job descriptions and public company pages are sent. The rate limiter, retry/backoff and per-run deadline are built to survive the free tier's token-per-minute cap rather than fail the run.
 
 ## Install and run
 
@@ -27,7 +27,7 @@ Copy-Item backend/.env.example backend/.env
 docker compose up -d --wait
 ```
 
-Do not overwrite an existing `backend/.env`. Add `OPENAI_API_KEY` there. Keys stay on the server. The local MongoDB service is bound to loopback and uses a replica set because multi-document transactions protect shared state.
+Do not overwrite an existing `backend/.env`. Add `GEMINI_API_KEY` there (free, from [Google AI Studio](https://aistudio.google.com/apikey)). Keys stay on the server. The local MongoDB service is bound to loopback and uses a replica set because multi-document transactions protect shared state.
 
 Run these in separate terminals:
 
@@ -57,19 +57,19 @@ The API uses port 8011 locally; the container uses port 8000. See [deployment in
 - `MONGODB_URI`, `MONGODB_DATABASE`: persistent MongoDB database. Transactions require a replica set or Atlas.
 - `APP_ENV=production`: requires HTTPS origins and enables Secure cookies.
 - `ALLOWED_ORIGINS`: comma-separated origins; the former JSON-array notation is also accepted for migration.
-- `OPENAI_API_KEY`, `OPENAI_MODEL`: model credentials and selection.
-- `OPENAI_RPM`, `OPENAI_TPM`: project-specific request/token budgets, defaulting conservatively to 10 RPM and 30,000 TPM. Adjust to the project's actual limits.
+- `GEMINI_API_KEY`, `GEMINI_MODEL`: model credentials and selection. `gemini-flash-latest` (default) tracks the current free-tier flash model; pin e.g. `gemini-3.5-flash` for a fixed version.
+- `GEMINI_RPM`, `GEMINI_TPM`: free-tier request/token budgets, defaulting to 10 RPM and 250,000 TPM. Set them to the active quota shown in Google AI Studio.
 - `JOB_TIMEOUT_SECONDS`: per-run orchestration deadline, default 600 seconds.
 - `TAVILY_API_KEY`: optional public interview search. Without it the kit records the missing evidence.
 - `YOUTUBE_API_KEY`: optional verified videos and playlists. Missing keys never produce fabricated links.
 
-Existing Gemini and SQL settings are ignored. Legacy PROVIDER_REQUESTS_PER_MINUTE and PROVIDER_TOKENS_PER_MINUTE values remain supported. Restart API and worker after changing configuration.
+Legacy SQL settings are ignored. Legacy `PROVIDER_REQUESTS_PER_MINUTE` and `PROVIDER_TOKENS_PER_MINUTE` values are still read as fallbacks for the `GEMINI_RPM`/`GEMINI_TPM` budgets. Restart API and worker after changing configuration.
 
 ## PDF intake
 
-On New course, choose Upload PDF to read a job posting (up to 5 MB). OpenAI receives the PDF directly and extracts the full posting, role title, company name and any explicitly stated website. Review the populated form, supply missing details and your preparation time, then create the course. Scanned PDFs can be read when legible; unreadable documents fail instead of producing an empty course. JSON remains an optional bulk-import format.
+On New course, choose Upload PDF to read a job posting (up to 5 MB). Gemini receives the PDF directly (inline base64) and extracts the full posting, role title, company name and any explicitly stated website. Review the populated form, supply missing details and your preparation time, then create the course. Scanned PDFs can be read when legible; unreadable documents fail instead of producing an empty course. JSON remains an optional bulk-import format.
 
-The extraction endpoint requires a session and CSRF token, limits file size and upload frequency, and stores extracted results with the owner's ID in MongoDB. The original PDF is sent inline to OpenAI with response storage disabled; it is not retained by this application. Course creation persists the reviewed description using the existing course flow.
+The extraction endpoint requires a session and CSRF token, limits file size and upload frequency, and stores extracted results with the owner's ID in MongoDB. The original PDF is sent inline to Gemini; it is not retained by this application. Course creation persists the reviewed description using the existing course flow.
 
 ## Mandatory batch command
 
@@ -83,13 +83,13 @@ The evaluator uses the same TypeScript pipeline as the worker. It does not need 
 
 Local fixture URLs are allowed only by the development/test CLI. Use `--public-sources-only` to disable them. Web generation always blocks private/reserved networks; production cannot enable local retrieval.
 
-Live benchmark, once the OpenAI key is configured:
+Live benchmark, once the Gemini key is configured:
 
 ```powershell
 node --import tsx scripts/benchmark.ts
 ```
 
-This invokes the mandatory npm command for five cases and writes `output/stack-migration-benchmark/`. It uses fictional company pages and live OpenAI. The previous 6m4s OpenAI benchmark predates this migration and is not evidence of throughput on the current Express backend.
+This invokes the mandatory npm command for five cases and writes `output/stack-migration-benchmark/`. It uses fictional company pages and live Gemini. Re-run it after configuring a key to record current throughput on the Express backend.
 
 ## Pipeline and research
 
@@ -129,7 +129,7 @@ MongoDB transactions protect enqueue/commit and concurrent editing. Shared plann
 
 Kit revisions reject stale browser saves. Metadata records generated/manual origin, edits, pins, per-day changes and deletion fingerprints. Regeneration merges into the latest saved kit, retaining manual/edited/pinned content, ordering and deletions. Role changes during an incompatible generation invalidate that run instead of overwriting the new context.
 
-OpenAI calls reserve estimated input plus maximum output tokens. Worker quota windows are shared in MongoDB; the standalone evaluator uses an in-process limiter. Calls retry transient failures and malformed structured output; exhausted quotas retain checkpoints and expose retry information. Independent CLI processes do not share a quota window.
+Gemini calls reserve estimated input plus maximum output tokens against the configured per-minute budget. Worker quota windows are shared in MongoDB; the standalone evaluator uses an in-process limiter. Calls retry transient failures and malformed structured output; exhausted quotas retain checkpoints and expose retry information. Independent CLI processes do not share a quota window.
 
 ## Practice
 
@@ -160,7 +160,7 @@ Backend tests use uniquely named disposable MongoDB databases. They cover schema
 
 Browser tests exercise the actual application; test-only data is seeded through a restricted local TypeScript script, never a public API endpoint. Three live-provider browser tests are opt-in via `RUN_LIVE_GENERATION`, `RUN_LIVE_REGENERATION`, and `RUN_LIVE_PRACTICE`. Hosted CI is configured but needs a repository remote.
 
-Verified locally: 46 backend tests and 15 browser checks passed. The five-case live evaluation completed successfully in 192.602 seconds, including short and long schedules, a thin description, and an unavailable company page.
+Verified locally after the Gemini switch: 55 backend tests pass. Browser checks and the five-case live evaluation must be re-run under the Gemini free tier; a prior evaluation completed in 192.602 seconds on a paid provider, and the free tier's token-per-minute cap is expected to make the run slower.
 
 ## Existing data and handoff
 
@@ -174,6 +174,6 @@ It opens the source read-only and only inserts missing records into MongoDB. Run
 
 Legacy source backups and local databases are not required to build or run the application and are excluded from this repository.
 
-Public hosting remains pending. The walkthrough has been refreshed against the current stack and UI. Current checks passed: 46 backend tests, 15 browser checks, and five live evaluation cases in 192.602 seconds. No public deployment or assessment submission has been sent automatically.
+Public hosting remains pending. The walkthrough has been refreshed against the current stack and UI. Current checks passed: 55 backend tests. Browser checks and the live five-case evaluation need re-running under the Gemini free tier. No public deployment or assessment submission has been sent automatically.
 
 Question browsing uses populated role-topic sections (for example, campaign strategy or analytics) and hides empty categories. Role-skill generation includes domain requirements and uses role-appropriate scenarios; software system-design questions require an explicit matching technical requirement. Exported questions retain the assignment?s four category values.

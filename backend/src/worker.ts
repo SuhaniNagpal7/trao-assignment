@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { collection, connect, client, transaction } from "./db.js";
 import { settings } from "./config.js";
-import { OpenAI, type Llm } from "./provider.js";
+import { Gemini, type Llm } from "./provider.js";
 import { AppError, deadlineCheck, sleep } from "./errors.js";
 import { definitions, event, pipelineVersion } from "./jobs.js";
 import { mergeGenerated, equal } from "./editing.js";
@@ -12,12 +12,12 @@ async function reserve(tokens: number, deadline: number) {
     throw new AppError(
       422,
       "TOKEN_BUDGET_EXCEEDED",
-      "Request exceeds the configured OpenAI token limit.",
+      "Request exceeds the configured Gemini token limit.",
     );
   for (;;) {
     deadlineCheck(deadline);
     const bucket = Math.floor(Date.now() / 60000);
-    const key = "openai:" + settings.model + ":" + bucket;
+    const key = "gemini:" + settings.model + ":" + bucket;
     try {
       await collection("rate_limits").updateOne(
         { _id: key },
@@ -48,13 +48,13 @@ async function reserve(tokens: number, deadline: number) {
       throw new AppError(
         429,
         "RATE_LIMITED",
-        "OpenAI quota is busy. Retry after the current quota window.",
+        "Gemini quota is busy. Retry after the current quota window.",
         wait,
       );
     await sleep(Math.min(wait, 1000));
   }
 }
-export async function workOne(llm: Llm = new OpenAI(reserve)) {
+export async function workOne(llm: Llm = new Gemini(reserve)) {
   const token = randomUUID(),
     now = new Date();
   let job = await collection("jobs").findOneAndUpdate(

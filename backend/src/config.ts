@@ -15,13 +15,13 @@ export const settings = {
   origins: (origins.startsWith("[")
     ? JSON.parse(origins)
     : origins.split(",").map((s) => s.trim())) as string[],
-  openaiKey: process.env.OPENAI_API_KEY || "",
-  model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  geminiKey: process.env.GEMINI_API_KEY || "",
+  model: process.env.GEMINI_MODEL || "gemini-flash-latest",
   rpm: Number(
-    process.env.OPENAI_RPM || process.env.PROVIDER_REQUESTS_PER_MINUTE || 10,
+    process.env.GEMINI_RPM || process.env.PROVIDER_REQUESTS_PER_MINUTE || 10,
   ),
   tpm: Number(
-    process.env.OPENAI_TPM || process.env.PROVIDER_TOKENS_PER_MINUTE || 30000,
+    process.env.GEMINI_TPM || process.env.PROVIDER_TOKENS_PER_MINUTE || 250000,
   ),
   tavilyKey: process.env.TAVILY_API_KEY || "",
   youtubeKey: process.env.YOUTUBE_API_KEY || "",

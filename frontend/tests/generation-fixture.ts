@@ -22,7 +22,7 @@ export async function mockMissingProvider(page: Page) {
     const course = (await (await page.request.get(url)).json()).course;
     job = { id: 'missing-provider-fixture', course_revision: course.revision, course_id: course.id, status: 'blocked', completed_steps: 2, total_steps: 17,
       steps: [], created_at: new Date().toISOString(), available_at: new Date().toISOString(), can_retry: true,
-      error: { code: 'CONFIGURATION_REQUIRED', message: 'Job analysis needs a configured OpenAI provider. Ask the administrator to configure OPENAI_API_KEY, then retry this run.' } };
+      error: { code: 'CONFIGURATION_REQUIRED', message: 'Job analysis needs a configured Gemini provider. Ask the administrator to configure GEMINI_API_KEY, then retry this run.' } };
     await route.fulfill({ status: 202, json: { job, created: true } });
   });
   await page.route(/\/api\/courses\/[^/]+\/jobs$/, async route => {

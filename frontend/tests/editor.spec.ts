@@ -86,7 +86,7 @@ test('schedule regeneration preserves edited day and unrelated content', async (
 });
 
 test('live category regeneration preserves edits made during the provider request', async ({ page }) => {
-  test.skip(process.env.RUN_LIVE_REGENERATION !== '1', 'Opt-in: uses OpenAI credits.');
+  test.skip(process.env.RUN_LIVE_REGENERATION !== '1', 'Opt-in: uses the Gemini free-tier quota.');
   test.setTimeout(180000);
   const { course, auth } = await seed(page);
   let current = (await (await page.request.get(`/api/courses/${course.id}`)).json()).course;
@@ -94,13 +94,13 @@ test('live category regeneration preserves edits made during the provider reques
   const run = await page.request.post(`/api/courses/${course.id}/regenerate`, { headers, data: { revision: current.kit_revision, section: 'questions_technical', request_key: crypto.randomUUID() } });
   expect(run.status()).toBe(202);
   const job = (await run.json()).job;
-  current.kit.questions[0].answer_outline = 'Written while OpenAI was generating replacement questions.';
+  current.kit.questions[0].answer_outline = 'Written while Gemini was generating replacement questions.';
   current.kit.questions.push({ ...current.kit.questions[0], id: 'manual-live', prompt: 'My original manual question' });
   const edit = await page.request.put(`/api/courses/${course.id}/kit`, { headers, data: { revision: current.kit_revision, kit: current.kit, pins: ['questions:q1'] } });
   expect(edit.status()).toBe(200);
   await expect.poll(async () => (await (await page.request.get(`/api/jobs/${job.id}`)).json()).job.status, { timeout: 150000, intervals: [1500] }).toBe('completed');
   current = (await (await page.request.get(`/api/courses/${course.id}`)).json()).course;
-  expect(current.kit.questions.find((q: { id: string }) => q.id === 'q1').answer_outline).toBe('Written while OpenAI was generating replacement questions.');
+  expect(current.kit.questions.find((q: { id: string }) => q.id === 'q1').answer_outline).toBe('Written while Gemini was generating replacement questions.');
   expect(current.kit.questions.some((q: { id: string }) => q.id === 'manual-live')).toBeTruthy();
   expect(current.kit.questions.length).toBeGreaterThanOrEqual(3);
   await page.goto(`/courses/${course.id}`);

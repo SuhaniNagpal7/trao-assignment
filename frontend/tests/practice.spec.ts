@@ -76,7 +76,7 @@ test('practice rejects stale tab reviews and recovers with explicit reload', asy
   await second.close();
 });
 
-test('live OpenAI lessons, answer feedback and interactive interview persist', async ({ page }) => {
+test('live Gemini lessons, answer feedback and interactive interview persist', async ({ page }) => {
   test.skip(process.env.RUN_LIVE_PRACTICE !== '1', 'Opt-in live provider test');
   test.setTimeout(300000);
   const { course } = await seed(page);

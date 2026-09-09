@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { connect, client, collection, transaction } from "../backend/src/db.js";
-import { OpenAI } from "../backend/src/provider.js";
+import { Gemini } from "../backend/src/provider.js";
 import { steps, type Context } from "../backend/src/pipeline.js";
 import { metadata } from "../backend/src/editing.js";
 import { validateKit } from "../backend/src/schemas.js";
@@ -26,7 +26,7 @@ try {
   const ctx: Context = {
     input: c as any,
     deadline: Date.now() + 180000,
-    llm: new OpenAI(),
+    llm: new Gemini(),
     outputs: {
       extract_job: {
         ...kit.role,
@@ -78,7 +78,7 @@ try {
     };
     event(
       job,
-      "Controlled coverage demonstration: one topic was deliberately withheld, then repaired by OpenAI.",
+      "Controlled coverage demonstration: one topic was deliberately withheld, then repaired by Gemini.",
     );
     await collection("jobs").insertOne(job, { session });
     await collection("courses").updateOne(

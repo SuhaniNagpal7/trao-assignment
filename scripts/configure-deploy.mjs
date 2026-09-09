@@ -21,5 +21,5 @@ writeFileSync(
   { flag: "wx", mode: 0o600 },
 );
 console.log(
-  "Created deployment/.env. Add your authenticated MongoDB Atlas URI and OpenAI key locally. The file is excluded from source control and Docker.",
+  "Created deployment/.env. Add your authenticated MongoDB Atlas URI and Gemini key locally. The file is excluded from source control and Docker.",
 );

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { seed } from './course-fixture';
 
 test('live feedback supports repeated submissions and reload without crashing', async ({ page }) => {
-  test.skip(process.env.RUN_LIVE_FEEDBACK !== '1', 'Opt-in: real OpenAI calls.');
+  test.skip(process.env.RUN_LIVE_FEEDBACK !== '1', 'Opt-in: real Gemini calls.');
   test.setTimeout(240000);
   const { course } = await seed(page);
   const errors: string[] = [];

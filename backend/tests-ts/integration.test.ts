@@ -108,8 +108,8 @@ test("atomic active-job deduplication across concurrent requests", async () => {
   assert.equal(await collection("jobs").countDocuments(), 1);
 });
 test("worker checkpoints missing provider and retries without losing logs", async () => {
-  const key = settings.openaiKey;
-  settings.openaiKey = "";
+  const key = settings.geminiKey;
+  settings.geminiKey = "";
   try {
     await workOne();
     const j = (await collection("jobs").findOne({ course_id: courseId }))!;
@@ -138,7 +138,7 @@ test("worker checkpoints missing provider and retries without losing logs", asyn
       1,
     );
   } finally {
-    settings.openaiKey = key;
+    settings.geminiKey = key;
   }
 });
 test("MongoDB edit transaction rejects concurrent stale writes", async () => {

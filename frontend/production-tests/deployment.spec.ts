@@ -22,7 +22,7 @@ test('production HTTPS proxy, sessions, ownership, persisted queue and missing-k
   await page.getByRole('button', { name: 'Start generation' }).click();
   await expect.poll(async () => (await (await page.request.get(`/api/courses/${course.id}/jobs`)).json()).jobs[0]?.status, { timeout: 60000 }).toBe('blocked');
   await page.reload();
-  await expect(page.getByRole('status').filter({ hasText: 'configured OpenAI provider' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'configured Gemini provider' })).toBeVisible();
   await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible();
   const other = await browser.newContext({ baseURL, ignoreHTTPSErrors: true });
   const response = await other.request.get(`/api/courses/${course.id}`);

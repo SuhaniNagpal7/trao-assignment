@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-test('live OpenAI generates a persisted course visible after refresh', async ({ page }) => {
+test('live Gemini generates a persisted course visible after refresh', async ({ page }) => {
   test.skip(process.env.RUN_LIVE_GENERATION !== '1', 'Opt-in: uses real provider credits.');
   test.setTimeout(600000);
   page.setDefaultTimeout(15000);

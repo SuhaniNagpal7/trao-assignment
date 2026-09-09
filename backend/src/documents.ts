@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OpenAI } from "./provider.js";
+import { Gemini } from "./provider.js";
 import { AppError } from "./errors.js";
 
 export const documentSchema = z.object({
@@ -11,7 +11,7 @@ export const documentSchema = z.object({
   warnings: z.array(z.string().max(500)).max(20),
 });
 
-export async function extractDocument(pdf: Buffer, provider = new OpenAI()) {
+export async function extractDocument(pdf: Buffer, provider = new Gemini()) {
   if (!Buffer.isBuffer(pdf) || pdf.length < 8 || !pdf.subarray(0, 5).equals(Buffer.from("%PDF-")))
     throw new AppError(422, "INVALID_PDF", "Choose a valid PDF document.");
   if (pdf.length > 5_000_000)

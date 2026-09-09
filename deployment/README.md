@@ -7,7 +7,7 @@ The containers run Next.js, Express/TypeScript, a separate Node worker and Caddy
 1. Create a [MongoDB Atlas Free cluster](https://www.mongodb.com/docs/atlas/tutorial/deploy-free-tier-cluster/), a database user, and a network allowlist for the hosting machine. Store the authenticated connection URI in the server environment, never in client code.
 2. Choose a container-capable host that supports a continuously running worker. Hosting has not been provisioned; this repository does not claim a free VM is already available.
 3. Point a domain at that host. Run `node scripts/configure-deploy.mjs prep.example.com` once to create an ignored environment template, or copy `.env.example` manually.
-4. In `deployment/.env`, set `APP_DOMAIN`, `MONGODB_URI`, `MONGODB_DATABASE`, `OPENAI_API_KEY`, and the project's real OpenAI quotas. The MongoDB URI in the example is only for the local smoke override.
+4. In `deployment/.env`, set `APP_DOMAIN`, `MONGODB_URI`, `MONGODB_DATABASE`, `GEMINI_API_KEY`, and the project's real Gemini free-tier quotas. The MongoDB URI in the example is only for the local smoke override.
 5. From the repository root run:
 
 ```sh
@@ -44,4 +44,4 @@ Back up MongoDB using the hosting provider's supported tools or `mongodump`, kee
 
 Secrets, databases, generated output and local caches are excluded from Docker and Git. The containers run as the unprivileged Node user. Production rejects non-HTTPS frontend origins, and cookies are Secure/HTTP-only/SameSite=Lax.
 
-Relevant references: [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https), [OpenAI Responses API](https://developers.openai.com/api/reference/cli/resources/responses/methods/create).
+Relevant references: [Next.js standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https), [Gemini API free tier](https://ai.google.dev/gemini-api/docs/rate-limits).

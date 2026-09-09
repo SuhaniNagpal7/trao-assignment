@@ -3,8 +3,8 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { settings } from "../backend/src/config.js";
 import { validateKit } from "../backend/src/schemas.js";
-if (!settings.openaiKey)
-  throw new Error("Configure OPENAI_API_KEY before running a live benchmark.");
+if (!settings.geminiKey)
+  throw new Error("Configure GEMINI_API_KEY before running a live benchmark.");
 const server = createServer((req, res) => {
   res.setHeader(
     "Content-Type",
