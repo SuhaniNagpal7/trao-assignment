@@ -1,8 +1,82 @@
 # Deploy the assessment stack
 
-The containers run Next.js, Express/TypeScript, a separate Node worker and Caddy HTTPS. Production uses an authenticated MongoDB replica-set connection, normally MongoDB Atlas. No Python or PostgreSQL service is deployed.
+Two supported topologies:
 
-## Public deployment
+- **Free hosting** — Render (backend) + Vercel (frontend) + MongoDB Atlas M0. The
+  API and job worker run in one process. Described first, below.
+- **Containers** — Next.js, Express/TypeScript, a separate Node worker and Caddy
+  HTTPS via `docker compose`. Described under "Container deployment".
+
+Both use an authenticated MongoDB replica-set connection (Atlas). No Python or
+PostgreSQL service is deployed.
+
+## Free hosting: Render + Vercel + Atlas
+
+Everything here is on a genuine free tier.
+
+### 1. Database — MongoDB Atlas M0
+
+Create a [free M0 cluster](https://www.mongodb.com/docs/atlas/tutorial/deploy-free-tier-cluster/),
+a database user, and a network access entry of `0.0.0.0/0` (Render's outbound IPs
+are not fixed on the free plan). Copy the `mongodb+srv://…` connection string. M0
+is a three-node replica set, so the multi-document transactions this app needs
+work.
+
+### 2. Backend — Render web service
+
+The repo has a `render.yaml` blueprint. In the Render dashboard choose
+**New → Blueprint** and point it at the repository, or create a web service
+manually with:
+
+- Runtime **Docker**, Dockerfile path `./backend/Dockerfile`, context `.`
+- Plan **Free**, health check path `/api/health`
+
+Set these environment variables (the blueprint marks them `sync: false`):
+
+| Variable | Value |
+| --- | --- |
+| `MONGODB_URI` | the Atlas `mongodb+srv://…` string |
+| `ALLOWED_ORIGINS` | `https://<your-vercel-domain>` (comma-separated if several) |
+| `GEMINI_API_KEY` | free key from [Google AI Studio](https://aistudio.google.com/apikey) |
+| `TAVILY_API_KEY` | optional — enables public interview search |
+| `YOUTUBE_API_KEY` | optional — enables verified video resources |
+
+`APP_ENV=production`, `RUN_WORKER=1`, `PORT=8000`, `MONGODB_DATABASE=ahead` and
+the `GEMINI_MODEL`/`GEMINI_RPM`/`GEMINI_TPM` defaults come from the blueprint.
+
+`RUN_WORKER=1` makes `server.js` run the job-drain loop in-process, so a single
+free service covers both the API and generation. The lease/heartbeat/checkpoint
+logic still applies, so this is safe across restarts.
+
+**Free-plan behaviour to expect:** the service sleeps after 15 minutes with no
+inbound request and cold-starts (~30–60s) on the next one. A generation job that
+was mid-run resumes from its last checkpoint when the service wakes. To keep it
+warm and draining the queue continuously, add a free external ping (for example
+[cron-job.org](https://cron-job.org) or a scheduled GitHub Actions workflow)
+hitting `https://<service>.onrender.com/api/health` every 10 minutes.
+
+### 3. Frontend — Vercel
+
+Import the repo in Vercel with **Root Directory** `frontend`. Set one
+environment variable:
+
+| Variable | Value |
+| --- | --- |
+| `BACKEND_URL` | `https://<your-render-service>.onrender.com` |
+
+Deploy, then copy the resulting `https://<project>.vercel.app` URL back into the
+Render service's `ALLOWED_ORIGINS` and redeploy the backend so CORS and CSRF
+origin checks accept it.
+
+### 4. Verify
+
+On the public Vercel URL: register/login, create a course, run generation with
+visible progress, edit and regenerate a section without losing edits, practise,
+refresh, and log out. Confirm anonymous and cross-account requests are rejected.
+Trigger a Render redeploy and confirm persisted courses and in-flight jobs
+survive.
+
+## Container deployment
 
 1. Create a [MongoDB Atlas Free cluster](https://www.mongodb.com/docs/atlas/tutorial/deploy-free-tier-cluster/), a database user, and a network allowlist for the hosting machine. Store the authenticated connection URI in the server environment, never in client code.
 2. Choose a container-capable host that supports a continuously running worker. Hosting has not been provisioned; this repository does not claim a free VM is already available.
@@ -38,7 +112,11 @@ docker compose --env-file deployment/.env.example -f deployment/compose.yaml -f 
 
 ## Operations
 
-Keep API and worker running as separate processes. A worker heartbeat/lease lets another worker resume saved checkpoints after a crash; transactions and lease fencing reject stale commits. Readiness is exposed at `/api/health/ready`.
+The container topology keeps API and worker as separate processes; the Render
+topology runs both in one process via `RUN_WORKER=1`. Either way a worker
+heartbeat/lease lets another worker resume saved checkpoints after a crash, and
+transactions and lease fencing reject stale commits. Liveness is `/api/health`;
+readiness (includes a MongoDB ping) is `/api/health/ready`.
 
 Back up MongoDB using the hosting provider's supported tools or `mongodump`, keeping credentials out of command history and logs. Free-tier storage, backups and idle-cluster limits differ from paid tiers; see [Atlas Free cluster limits](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/). Keep the source SQLite backup until migration has been verified, but do not deploy it.
 

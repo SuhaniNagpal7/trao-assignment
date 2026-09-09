@@ -48,7 +48,7 @@ node backend/dist/worker.js
 npm.cmd run start --workspace frontend
 ```
 
-The API uses port 8011 locally; the container uses port 8000. See [deployment instructions](deployment/README.md) for HTTPS and MongoDB Atlas.
+The API uses port 8011 locally; the container uses port 8000. [Deployment instructions](deployment/README.md) cover both a free Render + Vercel + MongoDB Atlas topology (API and worker in one process via `RUN_WORKER=1`) and the `docker compose` container stack with Caddy HTTPS.
 
 ## Environment
 
