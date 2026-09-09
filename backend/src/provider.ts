@@ -80,7 +80,13 @@ export class Gemini implements Llm {
           { text: prompt },
         ]
       : [{ text: prompt }];
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Hard attempts cover connection failures and malformed output. Rate-limit
+    // and transient 5xx responses are retried separately for as long as the
+    // run deadline allows, honouring the provider's requested delay, because a
+    // free tier that says "slow down" must not fail the run.
+    let attempt = 0,
+      throttleWaits = 0;
+    for (;;) {
       deadlineCheck(deadline);
       await this.reserve(
         Math.ceil(prompt.length / 3) + maxTokens + (pdf ? 8000 : 0),
@@ -109,9 +115,6 @@ export class Gemini implements Llm {
                 responseMimeType: "application/json",
                 maxOutputTokens: maxTokens,
                 temperature: 0.3,
-                // Structured extraction does not benefit from visible reasoning,
-                // and spent thinking tokens can exhaust maxOutputTokens.
-                thinkingConfig: { thinkingBudget: 0 },
               },
             }),
             signal: AbortSignal.timeout(
@@ -120,13 +123,13 @@ export class Gemini implements Llm {
           },
         );
       } catch {
-        if (attempt === 2)
+        if (++attempt >= 3)
           throw new AppError(
             503,
             "PROVIDER_UNAVAILABLE",
             "The model request timed out or could not connect.",
           );
-        await sleep(500 * (attempt + 1));
+        await sleep(500 * attempt);
         continue;
       }
       if (response.status === 401 || response.status === 403)
@@ -136,12 +139,19 @@ export class Gemini implements Llm {
           "Gemini rejected the configured key. Check its access in AI Studio.",
         );
       if (response.status === 429 || response.status >= 500) {
-        const retry = Number(response.headers.get("retry-after"));
-        const wait =
-          Number.isFinite(retry) && retry > 0
-            ? retry * 1000
-            : 2000 * 2 ** attempt;
-        if (attempt === 2 || Date.now() + wait >= deadline)
+        const body: any = await response.json().catch(() => null);
+        const retryInfo = (body?.error?.details || []).find((d: any) =>
+          String(d["@type"] || "").endsWith("RetryInfo"),
+        );
+        const header = Number(response.headers.get("retry-after"));
+        const seconds =
+          parseFloat(retryInfo?.retryDelay) ||
+          (Number.isFinite(header) && header > 0 ? header : 0);
+        const wait = Math.min(
+          seconds > 0 ? seconds * 1000 + 1000 : 2000 * 2 ** throttleWaits,
+          65000,
+        );
+        if (++throttleWaits > 8 || Date.now() + wait + 5000 >= deadline)
           throw new AppError(
             429,
             "RATE_LIMITED",
@@ -164,7 +174,7 @@ export class Gemini implements Llm {
           .join("");
         return schema.parse(JSON.parse(content));
       } catch {
-        if (attempt === 2)
+        if (++attempt >= 3)
           throw new AppError(
             502,
             "INVALID_MODEL_OUTPUT",
@@ -172,10 +182,5 @@ export class Gemini implements Llm {
           );
       }
     }
-    throw new AppError(
-      503,
-      "PROVIDER_UNAVAILABLE",
-      "Generation could not finish.",
-    );
   }
 }

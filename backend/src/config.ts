@@ -16,9 +16,9 @@ export const settings = {
     ? JSON.parse(origins)
     : origins.split(",").map((s) => s.trim())) as string[],
   geminiKey: process.env.GEMINI_API_KEY || "",
-  model: process.env.GEMINI_MODEL || "gemini-flash-latest",
+  model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
   rpm: Number(
-    process.env.GEMINI_RPM || process.env.PROVIDER_REQUESTS_PER_MINUTE || 10,
+    process.env.GEMINI_RPM || process.env.PROVIDER_REQUESTS_PER_MINUTE || 15,
   ),
   tpm: Number(
     process.env.GEMINI_TPM || process.env.PROVIDER_TOKENS_PER_MINUTE || 250000,

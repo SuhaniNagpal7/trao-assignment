@@ -10,12 +10,12 @@ Ahead turns a job description, company website, interview date and daily study a
 | Backend | Node.js 24, Express 5, TypeScript |
 | Database | MongoDB 8 replica set locally; MongoDB Atlas for hosting |
 | Scraping | TypeScript, Cheerio, Undici, robots-parser |
-| LLM | Google Gemini API (AI Studio free tier), default `gemini-flash-latest` |
+| LLM | Google Gemini API (AI Studio free tier), default `gemini-3.5-flash-lite` |
 | Validation | Zod schemas and deterministic reference/coverage checks |
 
 The application no longer requires Python, FastAPI, SQLAlchemy, or PostgreSQL. The optional one-time data importer uses Node's built-in SQLite reader to copy the former database into MongoDB; SQLite is not an application datastore.
 
-Gemini has a genuine free tier: an API key from [Google AI Studio](https://aistudio.google.com/apikey) needs no credit card, and `gemini-flash-latest` (the alias for the current free-tier flash model) covers this pipeline within the free per-minute and per-day limits. Requests use the [`generateContent` REST endpoint](https://ai.google.dev/gemini-api/docs) with `responseMimeType: application/json`, thinking disabled for deterministic structured output, and local Zod validation. Free-tier inputs may be used by Google to improve their products; only public job descriptions and public company pages are sent. The rate limiter, retry/backoff and per-run deadline are built to survive the free tier's token-per-minute cap rather than fail the run.
+Gemini has a genuine free tier: an API key from [Google AI Studio](https://aistudio.google.com/apikey) needs no credit card. The default is `gemini-3.5-flash-lite`, a pinned model id with the most free-tier headroom (about 15 requests/minute and 250k tokens/minute). The `*-latest` aliases are deliberately avoided: they track the newest model, whose free tier is only ~20 requests/day. Requests use the [`generateContent` REST endpoint](https://ai.google.dev/gemini-api/docs) with `responseMimeType: application/json` and local Zod validation. Free-tier inputs may be used by Google to improve their products; only public job descriptions and public company pages are sent. On a `429`, the client honours the `RetryInfo` delay Gemini returns and keeps retrying for as long as the per-run deadline allows, so a rate limit slows the run instead of failing it.
 
 ## Install and run
 
@@ -57,7 +57,7 @@ The API uses port 8011 locally; the container uses port 8000. See [deployment in
 - `MONGODB_URI`, `MONGODB_DATABASE`: persistent MongoDB database. Transactions require a replica set or Atlas.
 - `APP_ENV=production`: requires HTTPS origins and enables Secure cookies.
 - `ALLOWED_ORIGINS`: comma-separated origins; the former JSON-array notation is also accepted for migration.
-- `GEMINI_API_KEY`, `GEMINI_MODEL`: model credentials and selection. `gemini-flash-latest` (default) tracks the current free-tier flash model; pin e.g. `gemini-3.5-flash` for a fixed version.
+- `GEMINI_API_KEY`, `GEMINI_MODEL`: model credentials and selection. Default `gemini-3.5-flash-lite`; `gemini-3.5-flash` also works with a lower free-tier RPM. Do not use a `*-latest` alias (newest-model free tier is ~20 requests/day).
 - `GEMINI_RPM`, `GEMINI_TPM`: free-tier request/token budgets, defaulting to 10 RPM and 250,000 TPM. Set them to the active quota shown in Google AI Studio.
 - `JOB_TIMEOUT_SECONDS`: per-run orchestration deadline, default 600 seconds.
 - `TAVILY_API_KEY`: optional public interview search. Without it the kit records the missing evidence.
@@ -89,7 +89,7 @@ Live benchmark, once the Gemini key is configured:
 node --import tsx scripts/benchmark.ts
 ```
 
-This invokes the mandatory npm command for five cases and writes `output/stack-migration-benchmark/`. It uses fictional company pages and live Gemini. Re-run it after configuring a key to record current throughput on the Express backend.
+This invokes the mandatory npm command for five cases and writes `output/stack-migration-benchmark/`. It uses fictional company pages and live Gemini, validates every kit against Appendix A, and checks day counts. A recorded run: 5/5 cases ok in ~73 seconds on `gemini-3.5-flash-lite`.
 
 ## Pipeline and research
 
@@ -160,7 +160,7 @@ Backend tests use uniquely named disposable MongoDB databases. They cover schema
 
 Browser tests exercise the actual application; test-only data is seeded through a restricted local TypeScript script, never a public API endpoint. Three live-provider browser tests are opt-in via `RUN_LIVE_GENERATION`, `RUN_LIVE_REGENERATION`, and `RUN_LIVE_PRACTICE`. Hosted CI is configured but needs a repository remote.
 
-Verified locally after the Gemini switch: 55 backend tests pass. Browser checks and the five-case live evaluation must be re-run under the Gemini free tier; a prior evaluation completed in 192.602 seconds on a paid provider, and the free tier's token-per-minute cap is expected to make the run slower.
+Verified locally on the Gemini free tier (`gemini-3.5-flash-lite`): 55 backend tests pass, and the five-case live evaluation completed successfully in about 73 seconds — all kits valid against Appendix A, every must-have requirement covered, exact day counts, a thin description producing a thin kit, and an unreachable company still producing a valid kit. Browser checks still need re-running against the current provider.
 
 ## Existing data and handoff
 
@@ -174,6 +174,6 @@ It opens the source read-only and only inserts missing records into MongoDB. Run
 
 Legacy source backups and local databases are not required to build or run the application and are excluded from this repository.
 
-Public hosting remains pending. The walkthrough has been refreshed against the current stack and UI. Current checks passed: 55 backend tests. Browser checks and the live five-case evaluation need re-running under the Gemini free tier. No public deployment or assessment submission has been sent automatically.
+Public hosting remains pending. The walkthrough has been refreshed against the current stack and UI. Current checks passed: 55 backend tests and the five-case live evaluation on the Gemini free tier (~73s). Browser checks need re-running against the current provider. No public deployment or assessment submission has been sent automatically.
 
 Question browsing uses populated role-topic sections (for example, campaign strategy or analytics) and hides empty categories. Role-skill generation includes domain requirements and uses role-appropriate scenarios; software system-design questions require an explicit matching technical requirement. Exported questions retain the assignment?s four category values.
