@@ -1,11 +1,12 @@
 import type { NextConfig } from 'next';
 import path from 'node:path';
+import { backendOrigin } from './src/lib/backend';
 const config: NextConfig = {
   experimental: { proxyTimeout: 150000 },
   output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
   outputFileTracingRoot: path.resolve(__dirname, '..'),
   async rewrites() {
-    return [{ source: '/api/:path*', destination: `${process.env.BACKEND_URL || 'http://127.0.0.1:8011'}/api/:path*` }];
+    return [{ source: '/api/:path*', destination: `${backendOrigin()}/api/:path*` }];
   },
   async headers() {
     return [{ source: '/:path*', headers: [
