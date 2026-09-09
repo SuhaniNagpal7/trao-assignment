@@ -24,12 +24,14 @@ work.
 
 ### 2. Backend — Render web service
 
-The repo has a `render.yaml` blueprint. In the Render dashboard choose
-**New → Blueprint** and point it at the repository, or create a web service
-manually with:
+The repo has a `render.yaml` blueprint (native Node runtime, no Docker). In the
+Render dashboard choose **New → Blueprint** and point it at the repository, or
+create a web service manually with:
 
-- Runtime **Docker**, Dockerfile path `./backend/Dockerfile`, context `.`
-- Plan **Free**, health check path `/api/health`
+- Runtime **Node**, plan **Free**, region **Oregon**, branch `main`
+- Build command: `npm ci --include=dev --workspace backend --include-workspace-root && npm run build --workspace backend`
+- Start command: `node backend/dist/server.js`
+- Health check path: `/api/health`
 
 Set these environment variables (the blueprint marks them `sync: false`):
 
@@ -41,8 +43,12 @@ Set these environment variables (the blueprint marks them `sync: false`):
 | `TAVILY_API_KEY` | optional — enables public interview search |
 | `YOUTUBE_API_KEY` | optional — enables verified video resources |
 
-`APP_ENV=production`, `RUN_WORKER=1`, `PORT=8000`, `MONGODB_DATABASE=ahead` and
-the `GEMINI_MODEL`/`GEMINI_RPM`/`GEMINI_TPM` defaults come from the blueprint.
+`NODE_VERSION=22`, `APP_ENV=production`, `RUN_WORKER=1`, `MONGODB_DATABASE=ahead`
+and the `GEMINI_MODEL`/`GEMINI_RPM`/`GEMINI_TPM` defaults come from the blueprint.
+Render injects `PORT` and the server binds it automatically.
+
+The `backend/Dockerfile` still exists for the container topology below; the free
+Render path does not use it.
 
 `RUN_WORKER=1` makes `server.js` run the job-drain loop in-process, so a single
 free service covers both the API and generation. The lease/heartbeat/checkpoint

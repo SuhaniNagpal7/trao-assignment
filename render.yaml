@@ -1,23 +1,25 @@
-# Render Blueprint: single free web service running the Express API and, via
-# RUN_WORKER=1, the job worker in the same process. Frontend is hosted on
-# Vercel; the database is a MongoDB Atlas M0 cluster. See deployment/README.md.
+# Render Blueprint: one free web service running the Express API and, via
+# RUN_WORKER=1, the job worker in the same process. Native Node runtime (no
+# Docker). Frontend is on Vercel; the database is a MongoDB Atlas M0 cluster.
+# See deployment/README.md.
 services:
   - type: web
     name: ahead-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
+    runtime: node
     plan: free
     region: oregon
+    branch: main
+    buildCommand: npm ci --include=dev --workspace backend --include-workspace-root && npm run build --workspace backend
+    startCommand: node backend/dist/server.js
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: APP_ENV
         value: production
       - key: RUN_WORKER
         value: "1"
-      - key: PORT
-        value: "8000"
       - key: MONGODB_DATABASE
         value: ahead
       - key: GEMINI_MODEL
