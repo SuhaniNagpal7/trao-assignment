@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ClientSession } from "mongodb";
 import { collection, transaction } from "./db.js";
 import { settings } from "./config.js";
+import { profileFor } from "./learner.js";
 import {
   steps,
   categories,
@@ -30,10 +31,13 @@ export function event(
     created_at: new Date().toISOString(),
   });
 }
-export function definitions(snapshot: any): Step[] {
+export function definitions(snapshot: any, checkpoint: any = {}): Step[] {
   if (snapshot._practice) return practiceSteps(snapshot);
   if (snapshot._section)
     return [
+      ...(snapshot._refresh_company
+        ? [steps.find((step) => step.key === "research_company")!]
+        : []),
       {
         key: "regenerate_section",
         label: "Generate replacement section",
@@ -58,6 +62,9 @@ export function definitions(snapshot: any): Step[] {
         run: (c) => c.outputs.regenerate_section,
       },
     ];
+  if (snapshot._include_lessons && checkpoint.generate_content?.kit) {
+    return [...steps, ...practiceSteps({ _practice: { kind: "lessons" }, _base_kit: checkpoint.generate_content.kit, _learner_profile: snapshot.learner_profile })];
+  }
   return steps;
 }
 export async function ownedCourse(
@@ -77,8 +84,9 @@ export async function enqueue(
   userId: string,
   data: any = {},
   kind = "generate",
+  existingSession?: ClientSession,
 ) {
-  return transaction(async (session) => {
+  const run = async (session: ClientSession) => {
     const c = await ownedCourse(courseId, userId, session);
     const requestKey = data.request_key || randomUUID();
     const existing = await collection("jobs").findOne(
@@ -136,9 +144,12 @@ export async function enqueue(
         "days",
         "daily_minutes",
         "availability_scope",
+        "learner_profile",
       ].map((k) => [k, c[k]]),
     );
+    snapshot._include_lessons = kind === "generate" && !!data.include_lessons;
     let checkpoint: any = {};
+    snapshot.learner_profile = profileFor(c);
     if (kind === "regenerate") {
       if (
         ![
@@ -159,10 +170,13 @@ export async function enqueue(
           "Save or reload the latest kit before regenerating.",
         );
       snapshot._section = data.section;
+      snapshot._refresh_company = ["company_brief", "questions_company-fit"].includes(data.section);
       snapshot._base_kit = structuredClone(c.kit);
+      const researched = await collection("jobs").find({ course_id: courseId, "checkpoint.research_company": { $exists: true } }, { session }).sort({ created_at: -1 }).limit(1).next();
       checkpoint = {
+        company_brief: c.kit.company_brief,
         ...Object.fromEntries(
-          Object.entries(last?.checkpoint || {}).filter(([k]) =>
+          Object.entries(researched?.checkpoint || {}).filter(([k]) =>
             ["research_company", "search_interviews"].includes(k),
           ),
         ),
@@ -227,7 +241,8 @@ export async function enqueue(
       { session },
     );
     return { job, created: true };
-  });
+  };
+  return existingSession ? run(existingSession) : transaction(run);
 }
 export function jobView(j: any) {
   return {

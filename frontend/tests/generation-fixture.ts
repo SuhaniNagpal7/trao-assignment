@@ -1,7 +1,21 @@
 import type { Page } from '@playwright/test';
 
+// Keep form/polling tests independent of live provider calls.
+export async function mockDraftCreation(page: Page) {
+  for (const endpoint of ['create-and-generate', 'batch']) {
+    await page.route(`**/api/courses/${endpoint}`, async route => {
+      const { auto_generate, ...data } = route.request().postDataJSON();
+      const response = await page.request.post(endpoint === 'batch' ? '/api/courses/batch' : '/api/courses', {
+        headers: { Origin: 'http://localhost:3000', 'X-CSRF-Token': route.request().headers()['x-csrf-token'] }, data
+      });
+      await route.fulfill({ status: response.status(), json: await response.json() });
+    });
+  }
+}
+
 // Deterministic polling tests must never consume a developer's live API credits.
 export async function mockMissingProvider(page: Page) {
+  await mockDraftCreation(page);
   let job: Record<string, unknown> | null = null;
   await page.route(/\/api\/courses\/[^/]+\/generate$/, async route => {
     const url = route.request().url().replace(/\/generate$/, '');

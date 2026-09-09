@@ -1,3 +1,4 @@
+import { definitions } from "../src/jobs.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -7,7 +8,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { OpenAI, type Llm } from "../src/provider.js";
 import { settings } from "../src/config.js";
-import { generateKit, steps } from "../src/pipeline.js";
+import { generateKit, generateQuestions, steps } from "../src/pipeline.js";
 import { courseInput } from "../src/schemas.js";
 import { crawlCompany, retrieve } from "../src/research.js";
 import { evaluateCases } from "../src/evaluate.js";
@@ -35,6 +36,7 @@ class FixtureModel implements Llm {
                   kind: "technical",
                   priority: "must",
                 },
+                { id: "sql", text: "SQL", evidence: "SQL", kind: "technical", priority: "must" },
               ],
         warnings: [],
       });
@@ -50,11 +52,11 @@ class FixtureModel implements Llm {
         return schema.parse({ questions: [] });
       }
       return schema.parse({
-        questions: data.requirements.map((r: any) => ({
+        questions: (instructions.includes("for company-fit.") ? data.requirements.slice(0, 1) : data.requirements).map((r: any) => ({
           id: "placeholder",
           requirement_ids: [r.id],
-          category: "technical",
-          prompt: "Explain " + r.text,
+          category: instructions.includes("for company-fit.") ? "company-fit" : "technical",
+          prompt: (instructions.includes("for company-fit.") ? "How would you contribute using " : "Explain ") + r.text,
           answer_outline:
             "Use a small example to explain the mechanism and tradeoffs.",
           difficulty: 2,
@@ -142,6 +144,18 @@ async function fixture() {
       ),
   };
 }
+test("hostname crawling supports Node DNS family selection and follows discovered pages", async () => {
+  const site = await fixture();
+  try {
+    const address = site.url.replace("127.0.0.1", "localhost");
+    const result = await crawlCompany(address, Date.now() + 10000, true);
+    assert.equal(result.sources.length, 2);
+    assert.ok(result.sources.some(source => source.url.includes("/handbook/unexpected-hiring")));
+    assert.ok(!result.skipped.some(item => item.reason.includes("Robots policy")));
+    await assert.rejects(retrieve(address, Date.now() + 1000), /Private and reserved/);
+  } finally { await site.close(); }
+});
+
 test("crawler discovers relative hiring links and respects robots", async () => {
   const f = await fixture();
   try {
@@ -173,7 +187,7 @@ test("full pipeline detects a real coverage gap and repairs it before scheduling
     const k = await generateKit(
       courseInput.parse({
         title: "Fixture",
-        jd: "JavaScript required.",
+        jd: "JavaScript and SQL required.",
         company_url: f.url,
         days: 14,
       }),
@@ -297,4 +311,55 @@ test("OpenAI rate-limit response respects deadline and never falls back to anoth
   } finally {
     settings.openaiKey = old;
   }
+});
+
+test("company brief refresh recrawls sources while other regeneration and old jobs remain unchanged", () => {
+  assert.deepEqual(definitions({ _section: "company_brief", _refresh_company: true }).map(s => s.key), ["research_company", "regenerate_section", "merge_section"]);
+  assert.deepEqual(definitions({ _section: "company_brief" }).map(s => s.key), ["regenerate_section", "merge_section"]);
+  assert.deepEqual(definitions({ _section: "questions_technical" }).map(s => s.key), ["regenerate_section", "merge_section"]);
+});
+
+
+test("company-fit uses company research for technical-only roles and rejects empty output", async () => {
+  const research = { sources: [{ url: "https://example.com/about", text: "Builds developer tools." }] };
+  const context: any = {
+    input: courseInput.parse({ title: "Engineer", jd: "JavaScript required.", company_url: "https://example.com", days: 7 }),
+    outputs: { extract_job: { title: { text: "Engineer" }, responsibilities: [], requirements: [{ id: "r-js", text: "JavaScript", kind: "technical", priority: "must" }] }, research_company: research, company_brief: { summary: "Developer tools" } },
+    deadline: Date.now() + 10000,
+    llm: { json: async (schema: any, instructions: string, data: any) => {
+      assert.deepEqual(data.hiring, research);
+      assert.equal(data.requirements[0].id, "r-js");
+      assert.match(instructions, /motivation, products or customers/);
+      return schema.parse({ questions: [{ id: "temporary", category: "company-fit", requirement_ids: ["r-js"], prompt: "How would you use JavaScript to contribute to our developer tools?", answer_outline: "Connect a relevant project to developer needs and explain your contribution.", difficulty: 1 }] });
+    } }
+  };
+  const result = await generateQuestions(context, "company-fit");
+  assert.equal(result.questions.length, 1);
+  context.outputs.research_company = { sources: [] };
+  context.llm.json = async (schema: any, instructions: string) => {
+    assert.match(instructions, /without asserting unverified company facts/);
+    return schema.parse({ questions: [] });
+  };
+  await assert.rejects(generateQuestions(context, "company-fit"));
+});
+
+
+test("marketing domain skills get practical questions without a software system-design round", async () => {
+  let calls = 0;
+  const context: any = {
+    input: courseInput.parse({ title: "Marketing Manager", jd: "Campaign design and marketing analytics.", company_url: "https://example.com", days: 7 }),
+    outputs: { extract_job: { title: { text: "Marketing Manager" }, responsibilities: [], requirements: [
+      { id: "campaign", text: "Campaign design", kind: "domain", priority: "must" },
+      { id: "analytics", text: "Marketing analytics and dashboard design", kind: "technical", priority: "must" }
+    ] } }, deadline: Date.now() + 10000,
+    llm: { json: async (schema: any, instructions: string, data: any) => {
+      calls++;
+      assert.match(instructions, /Do not force programming/);
+      assert.equal(data.requirements.length, 2);
+      return schema.parse({ questions: data.requirements.map((r: any) => ({ id: r.id, category: "technical", requirement_ids: [r.id], prompt: "How would you apply " + r.text + "?", answer_outline: "Explain your audience, choices, metrics and experiment.", difficulty: 2 })) });
+    } }
+  };
+  assert.deepEqual(await generateQuestions(context, "system-design"), { questions: [] });
+  assert.equal(calls, 0);
+  assert.equal((await generateQuestions(context, "technical")).questions.length, 2);
 });

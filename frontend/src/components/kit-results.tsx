@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { questionSections, categoryLabels } from '@/lib/question-sections';
 
 export type Kit = {
   company_brief: { summary: string; what_they_do: string; sources: string[] };
@@ -14,11 +15,14 @@ export default function KitResults({ kit, shared }: { kit: Kit; shared: boolean 
   const [tab, setTab] = useState('Overview');
   const [dayNumber, setDayNumber] = useState(1);
   const [category, setCategory] = useState('all');
+  const sections = questionSections(kit);
+  const selected = sections.find(section => section.id === category);
+  const visibleQuestions = selected ? kit.questions.filter(q => selected.questionIds.includes(q.id)) : kit.questions;
   const day = kit.schedule.days.find(day => day.day === dayNumber) || kit.schedule.days[0];
   const covered = new Set(kit.questions.flatMap(q => q.requirement_ids));
   const missing = kit.role.requirements.some(r => r.priority === 'must' && !covered.has(r.id));
   const labels = new Map(kit.role.requirements.map(requirement => [requirement.id, requirement.text]));
-  const question = (item: Kit['questions'][number]) => <details className="study-question" key={item.id}><summary>{item.prompt}</summary><span className="research-meta">{item.category} · Difficulty {item.difficulty}/3 · {item.requirement_ids.map(id => labels.get(id)).join(', ')}</span><h4>How to approach it</h4><p className="study-answer">{item.answer_outline}</p></details>;
+  const question = (item: Kit['questions'][number]) => <details className="study-question" key={item.id}><summary>{item.prompt}</summary><span className="research-meta">{categoryLabels[item.category] || item.category} · Difficulty {item.difficulty}/3 · {item.requirement_ids.map(id => labels.get(id)).join(', ')}</span><h4>How to approach it</h4><p className="study-answer">{item.answer_outline}</p></details>;
   return <section className="panel kit-results" aria-label="Generated preparation kit">
     <div className="generation-heading"><div><span className="eyebrow">YOUR STUDY PLAN</span><h2>Ready to prepare</h2></div><span className="badge">{kit.schedule.days_available} days</span></div>
     <p className="field-help">{kit.questions.length} questions · {kit.flashcards.length} flashcards · {missing ? 'Some required topics need attention' : 'All required topics covered'}</p>
@@ -35,9 +39,9 @@ export default function KitResults({ kit, shared }: { kit: Kit; shared: boolean 
         <h3>Day {day.day}</h3><p>{day.focus}</p><p className="field-help">{day.minutes} minutes of suggested practice. Think through each answer before opening the explanation.</p>
         {day.question_ids.map(id => kit.questions.find(q => q.id === id)).filter((q): q is Kit['questions'][number] => !!q).map(question)}
       </>}
-      {tab === 'Questions' && <><label className="run-select">Question category<select aria-label="Question category" value={category} onChange={event => setCategory(event.target.value)}><option value="all">All categories</option>{['technical', 'behavioural', 'system-design', 'company-fit'].map(name => <option key={name}>{name}</option>)}</select></label>
-        {kit.questions.filter(q => category === 'all' || q.category === category).map(question)}
-        {!kit.questions.filter(q => category === 'all' || q.category === category).length && <p>No questions in this category for the supplied JD.</p>}
+      {tab === 'Questions' && <><label className="run-select">Question category<select aria-label="Question category" value={selected?.id || 'all'} onChange={event => setCategory(event.target.value)}><option value="all">All questions</option>{sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}</select></label>
+        {visibleQuestions.map(question)}
+        {!kit.questions.length && <p>No questions saved yet. Add questions in the editor or update the role requirements to prepare this course.</p>}
       </>}
       {tab === 'Flashcards' && <><p className="field-help">Try answering aloud, then reveal the explanation. Practice tracking will be added in a later phase.</p>{kit.flashcards.map(card => <details className="study-question" key={card.id}><summary>{card.front}</summary><p className="study-answer">{card.back}</p></details>)}{!kit.flashcards.length && <p>No flashcards were generated for this thin job description.</p>}</>}
     </div>

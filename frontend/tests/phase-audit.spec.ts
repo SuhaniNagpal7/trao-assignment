@@ -51,10 +51,10 @@ test('invalid imports show useful errors without saving partial courses', async 
   await page.getByRole('button', { name: 'Import multiple' }).click();
   const upload = page.getByLabel('Batch JSON file');
   await upload.setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{bad json') });
-  await page.getByRole('button', { name: 'Import courses' }).click();
+  await page.getByRole('button', { name: 'Import and generate courses' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('not valid JSON');
   await upload.setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify([{ id: 'good', jd: 'Python', company_url: 'https://example.com', days: 1 }, { id: 'bad', jd: 'SQL', company_url: 'https://example.org', days: 0 }])) });
-  await page.getByRole('button', { name: 'Import courses' }).click();
+  await page.getByRole('button', { name: 'Import and generate courses' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('cases.1.days');
   const courses = await page.request.get('/api/courses');
   expect((await courses.json()).courses).toEqual([]);

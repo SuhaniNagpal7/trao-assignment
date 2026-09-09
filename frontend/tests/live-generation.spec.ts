@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 test('live OpenAI generates a persisted course visible after refresh', async ({ page }) => {
   test.skip(process.env.RUN_LIVE_GENERATION !== '1', 'Opt-in: uses real provider credits.');
-  test.setTimeout(420000);
+  test.setTimeout(600000);
   page.setDefaultTimeout(15000);
   const registered = await page.request.post('/api/auth/register', {
     headers: { Origin: 'http://localhost:3000' },
@@ -11,7 +11,7 @@ test('live OpenAI generates a persisted course visible after refresh', async ({ 
   });
   expect(registered.status()).toBe(201);
   const auth = await registered.json();
-  const created = await page.request.post('/api/courses', {
+  const created = await page.request.post('/api/courses/create-and-generate', {
     headers: { Origin: 'http://localhost:3000', 'X-CSRF-Token': auth.csrf_token },
     data: { title: 'Phase 4 live verification', company_name: process.env.RUN_LIVE_TAVILY === '1' ? 'Microsoft' : 'Example', company_url: process.env.RUN_LIVE_TAVILY === '1' ? 'https://careers.microsoft.com' : 'https://example.com',
       jd: 'Senior Backend Engineer. Build reliable APIs and mentor teammates. Required: Python, PostgreSQL, clear communication, and financial services domain knowledge. Preferred: Kubernetes experience.',
@@ -20,12 +20,9 @@ test('live OpenAI generates a persisted course visible after refresh', async ({ 
   expect(created.status()).toBe(201);
   const course = (await created.json()).course;
   await page.goto(`/courses/${course.id}`);
-  const queued = page.waitForResponse(response => response.url().endsWith(`/api/courses/${course.id}/generate`) && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Start generation', exact: true }).click();
-  expect((await queued).status()).toBe(202);
   // Poll the same owner-protected API while the page's own polling updates the UI.
   let last = '';
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < 180; attempt++) {
     const jobs = (await (await page.request.get(`/api/courses/${course.id}/jobs`)).json()).jobs;
     const job = jobs[0];
     const state = `${job.completed_steps}/${job.total_steps}: ${job.current_step} (${job.status})`;
@@ -65,6 +62,25 @@ test('live OpenAI generates a persisted course visible after refresh', async ({ 
   await expect(page.getByRole('heading', { name: 'Ready to prepare' })).toBeVisible();
   const reloaded = (await (await page.request.get(`/api/courses/${course.id}`)).json()).course;
   expect(reloaded.kit).toEqual(saved.kit);
+  const practice = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();
+  expect(practice.missing_lesson_ids).toEqual([]);
+  expect(practice.learning.lessons).toHaveLength(saved.kit.role.requirements.length);
+  expect(practice.state.plan).toBeTruthy();
+  let generationRequests = 0;
+  page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/generate')) generationRequests++; });
+  await page.goto(`/courses/${course.id}/practice`);
+  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await expect(page.getByText('All chapters saved and ready to read')).toBeVisible();
+  for (const lesson of practice.learning.lessons) {
+    await page.getByLabel('Choose a lesson', { exact: true }).selectOption(lesson.requirement_id);
+    await expect(page.locator('.reading-lesson h2')).toHaveText(lesson.title);
+  }
+  await page.reload();
+  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await expect(page.getByText('All chapters saved and ready to read')).toBeVisible();
+  expect(generationRequests).toBe(0);
+  const restoredPractice = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();
+  expect(restoredPractice.learning.lessons).toEqual(practice.learning.lessons);
   await mkdir('../output', { recursive: true });
   await writeFile('../output/phase-4-live-kit.json', JSON.stringify({ course_id: course.id, kit: saved.kit }, null, 2));
   await page.screenshot({ path: 'test-results/phase-4-live-course.png', fullPage: true });

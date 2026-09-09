@@ -36,6 +36,7 @@ export const fingerprint = (v: any) =>
       v.days,
       v.daily_minutes,
       v.availability_scope,
+      v.learner_profile,
     ]),
   );
 const cookie = (req: express.Request) =>
@@ -59,6 +60,7 @@ export function courseView(c: any, full = false) {
     "days",
     "daily_minutes",
     "availability_scope",
+    "learner_profile",
     "status",
     "revision",
     "created_at",
@@ -304,6 +306,17 @@ app.get("/api/courses", async (_req, res) => {
     .toArray();
   res.json({ courses: rows.map((c) => courseView(c)) });
 });
+app.post("/api/courses/create-and-generate", async (req, res) => {
+  const v = courseInput.parse(req.body);
+  const result = await transaction(async session => {
+    const saved = await saveDraft(res.locals.user.id, v, session);
+    if (saved.course.status === "ready") return { course: courseView(saved.course, true), created: false, job: null };
+    const queued = await enqueue(saved.course.id, res.locals.user.id, { include_lessons: true }, "generate", session);
+    const current = await ownedCourse(saved.course.id, res.locals.user.id, session);
+    return { course: courseView(current, true), created: saved.created, job: jobView(queued.job) };
+  });
+  res.status(201).json(result);
+});
 app.post("/api/courses", async (req, res) => {
   const v = courseInput.parse(req.body);
   let result;
@@ -324,7 +337,9 @@ app.post("/api/courses", async (req, res) => {
     .json({ course: courseView(result.course, true), created: result.created });
 });
 app.post("/api/courses/batch", async (req, res) => {
-  const v = batchInput.parse(req.body);
+  const { auto_generate = false, ...batch } = req.body || {};
+  z.boolean().parse(auto_generate);
+  const v = batchInput.parse(batch);
   const results = await transaction(async (session) => {
     const out = [];
     for (const c of v.cases) {
@@ -339,6 +354,10 @@ app.post("/api/courses/batch", async (req, res) => {
         }),
         session,
       );
+      if (auto_generate && result.course.status !== "ready") {
+        await enqueue(result.course.id, res.locals.user.id, { include_lessons: true }, "generate", session);
+        result.course = await ownedCourse(result.course.id, res.locals.user.id, session);
+      }
       out.push({
         case_id: c.id,
         course: courseView(result.course, true),
@@ -400,6 +419,7 @@ const generation = z
   .object({
     request_key: z.string().min(1).max(128).optional(),
     force: z.boolean().default(false),
+    include_lessons: z.boolean().default(false),
   })
   .strict();
 app.post("/api/courses/:id/generate", async (req, res) => {

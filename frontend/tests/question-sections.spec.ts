@@ -1,0 +1,30 @@
+import { test, expect } from '@playwright/test';
+import { seed } from './course-fixture';
+
+test('marketing shows populated role topics and hides empty question categories', async ({ page }) => {
+  const { course, auth } = await seed(page);
+  const current = (await (await page.request.get(`/api/courses/${course.id}`)).json()).course;
+  const kit = current.kit;
+  kit.role.title = 'Marketing Manager';
+  kit.role.requirements[0].text = 'Campaign Strategy';
+  kit.role.requirements[0].kind = 'domain';
+  kit.role.requirements[1].text = 'Marketing Analytics';
+  kit.role.requirements[1].kind = 'technical';
+  kit.questions[0].prompt = 'How would you plan a campaign?';
+  kit.questions[1].category = 'technical';
+  kit.questions[1].prompt = 'How would you measure campaign success?';
+  const saved = await page.request.put(`/api/courses/${course.id}/kit`, { headers: { Origin: 'http://localhost:3000', 'X-CSRF-Token': auth.csrf_token }, data: { revision: current.kit_revision, kit, pins: [] } });
+  expect(saved.status()).toBe(200);
+  await page.goto(`/courses/${course.id}`);
+  await page.getByRole('tab', { name: 'Questions', exact: true }).click();
+  const category = page.getByLabel('Question category', { exact: true });
+  await expect(category.locator('option')).toHaveText(['All questions', 'Campaign Strategy', 'Marketing Analytics']);
+  await category.selectOption('topic:r1');
+  await expect(page.locator('.study-question summary')).toHaveText(['How would you plan a campaign?']);
+  await category.selectOption('topic:r2');
+  await expect(page.locator('.study-question summary')).toHaveText(['How would you measure campaign success?']);
+  await expect(page.getByLabel('Section to regenerate').locator('option[value="questions_system-design"]')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Questions', exact: true }).click();
+  await expect(category.locator('option')).toHaveText(['All questions', 'Campaign Strategy', 'Marketing Analytics']);
+});

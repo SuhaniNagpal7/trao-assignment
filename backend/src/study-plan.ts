@@ -1,3 +1,4 @@
+import { needsFoundation } from "./learner.js";
 import { type Kit } from "./schemas.js";
 import { equal } from "./editing.js";
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -77,7 +78,7 @@ export function tasks(c: any) {
       ),
     });
   for (const l of lessons)
-    add("read:" + l.requirement_id, "reading", l.title, l.minutes, [
+    add("read:" + l.requirement_id, "reading", l.title, l.minutes + (needsFoundation(c, l.requirement_id) ? 10 : 0), [
       l.requirement_id,
     ]);
   for (const q of [...kit.questions].sort(
@@ -89,8 +90,8 @@ export function tasks(c: any) {
     add(
       "answer:" + q.id,
       "assignment",
-      q.prompt,
-      5 + 5 * q.difficulty,
+      (q.requirement_ids.some(id => needsFoundation(c, id)) ? "Guided practice: " : "") + q.prompt,
+      5 + 5 * q.difficulty + (q.requirement_ids.some(id => needsFoundation(c, id)) ? 10 : 0),
       q.requirement_ids,
       l ? "read:" + l.requirement_id : null,
       [q.id],

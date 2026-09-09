@@ -74,7 +74,7 @@ export default function GenerationPanel({ course, csrf, onUpdate }: { course: Co
     try {
       const result = retry && job
         ? await api<{ job: Job }>(`/jobs/${job.id}/retry`, { method: 'POST' }, csrf)
-        : await api<{ job: Job }>(`/courses/${course.id}/generate`, { method: 'POST', body: JSON.stringify({ force, request_key: requestKey.current }) }, csrf);
+        : await api<{ job: Job }>(`/courses/${course.id}/generate`, { method: 'POST', body: JSON.stringify({ force, request_key: requestKey.current, include_lessons: true }) }, csrf);
       requestKey.current = null;
       setJob(result.job);
       setRuns(old => [result.job, ...old.filter(run => run.id !== result.job.id)]);

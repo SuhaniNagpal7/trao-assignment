@@ -1,5 +1,7 @@
+export type LearnerProfile = { level: "not_sure" | "beginner" | "intermediate" | "advanced"; experience_years: number | null; focus: string; topics: Record<string, "new" | "some" | "comfortable"> };
+export const defaultLearnerProfile: LearnerProfile = { level: "not_sure", experience_years: null, focus: "", topics: {} };
 export type User = { id: string; name: string; email: string };
-export type CourseInput = { title: string; company_name: string; company_url: string; jd: string; days: number; daily_minutes: number; availability_scope: 'shared' | 'course' };
+export type CourseInput = { learner_profile?: LearnerProfile; title: string; company_name: string; company_url: string; jd: string; days: number; daily_minutes: number; availability_scope: 'shared' | 'course' };
 export type Progress = { reviewed: number; total: number; coverage: number; confident: number; questions_attempted: number; questions_total: number; activities_completed: number; activities_total: number };
 export type Course = CourseInput & { id: string; status: string; revision: number; created_at: string; updated_at: string; practice_progress: number | null; practice_summary: Progress | null; kit_revision: number; kit_meta: { items: Record<string, { origin: string; edited: boolean; pinned: boolean; revision: number }>; sections: Record<string, { edited?: boolean; pinned?: boolean }>; deleted: Record<string, string[]> }; kit_warnings: { uncovered_required_ids?: string[]; unscheduled_required_ids?: string[] }; kit: import('@/components/kit-results').Kit | null };
 export type Auth = { user: User; csrf_token: string };

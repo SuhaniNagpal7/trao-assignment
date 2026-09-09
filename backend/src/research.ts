@@ -52,11 +52,15 @@ export async function retrieve(
         "UNSAFE_URL",
         "Private and reserved network addresses are not permitted.",
       );
-    const selected = addresses[0];
+    const selected = addresses.find((a) => a.family === 4) || addresses[0];
     const dispatcher = new Agent({
       connect: {
-        lookup: (_hostname, _options, cb) =>
-          cb(null, selected.address, selected.family),
+        lookup: (_hostname, options, cb) => {
+          // Node's family auto-selection requests an array with all:true.
+          // Both callback shapes must return only the already-validated IP.
+          if (options.all) cb(null, [selected]);
+          else cb(null, selected.address, selected.family);
+        },
       },
     });
     try {

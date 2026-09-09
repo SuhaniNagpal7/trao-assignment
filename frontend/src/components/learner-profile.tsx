@@ -1,0 +1,16 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { type LearnerProfile } from '@/lib/api';
+
+type Requirement = { id: string; text: string };
+export function LearnerFields({ value, onChange, requirements = [] }: { value: LearnerProfile; onChange: (v: LearnerProfile) => void; requirements?: Requirement[] }) {
+  return <div className="learner-fields"><h3>Where are you starting?</h3><p>Tell us what feels familiar. We will tailor explanations and practice time while keeping the job's required topics.</p><div className="form-row"><label>Your current level<select value={value.level} onChange={e => onChange({ ...value, level: e.target.value as LearnerProfile['level'] })}><option value="not_sure">Not sure - guide me</option><option value="beginner">Beginner - start with foundations</option><option value="intermediate">Intermediate - I have used these skills</option><option value="advanced">Advanced - focus on interview depth</option></select></label><label>Relevant experience (years)<input type="number" min={0} max={60} step={0.5} placeholder="Optional" value={value.experience_years ?? ''} onChange={e => onChange({ ...value, experience_years: e.target.value === '' ? null : Number(e.target.value) })} /></label></div><label>What would you like extra help with?<textarea maxLength={1500} rows={2} value={value.focus} onChange={e => onChange({ ...value, focus: e.target.value })} placeholder="For example: SQL joins are new to me; I need practice explaining my projects." /></label>{requirements.length > 0 && <details><summary>How comfortable are you with each topic?</summary><p>These are your estimates, separate from confidence recorded during flashcard practice.</p>{requirements.map(r => <label key={r.id}>{r.text}<select aria-label={`Familiarity with ${r.text}`} value={value.topics[r.id] || ''} onChange={e => { const topics = { ...value.topics }; if (e.target.value) topics[r.id] = e.target.value as LearnerProfile['topics'][string]; else delete topics[r.id]; onChange({ ...value, topics }); }}><option value="">Use my overall level</option><option value="new">New to this - teach the basics</option><option value="some">Some experience - need practice</option><option value="comfortable">Comfortable - challenge me</option></select></label>)}</details>}</div>;
+}
+
+export function LearnerSetup({ value, requirements, disabled, onSave }: { value: LearnerProfile; requirements: Requirement[]; disabled: boolean; onSave: (v: LearnerProfile) => Promise<boolean> }) {
+  const serialized = JSON.stringify(value);
+  const [draft, setDraft] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setDraft(JSON.parse(serialized)); }, [serialized]);
+  return <section className="learner-setup"><fieldset disabled={disabled}><LearnerFields value={draft} requirements={requirements} onChange={v => { setDraft(v); setSaved(false); }} /><button className="secondary" type="button" onClick={() => void onSave(draft).then(ok => setSaved(ok))}>Save level and adapt plan</button></fieldset>{saved && <p className="success" role="status">Your level is saved. Any existing practice plan has been adapted. Refresh reading materials to update the lessons.</p>}</section>;
+}

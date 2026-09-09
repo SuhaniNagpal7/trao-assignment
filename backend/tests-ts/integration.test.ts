@@ -274,7 +274,8 @@ test("durable lessons, feedback and interactive interview turns persist", async 
   assert.equal(p.missing_lesson_ids.length, 0);
   assert.ok(p.state.plan);
   p = await run({ kind: "feedback", item_id: "code:r1", text: "return {}" });
-  assert.equal(p.state.feedback["code:r1"].verdict, "developing");
+  assert.equal(p.state.feedback["code:r1"].feedback.verdict, "developing");
+  assert.equal(p.state.feedback["code:r1"].answer, "return {}");
   assert.ok(p.history.some((e: any) => e.kind === "feedback"));
   p = await run({ kind: "interview", mode: "teaching", minutes: 15 });
   let interview = p.interviews[0];
@@ -296,6 +297,45 @@ test("durable lessons, feedback and interactive interview turns persist", async 
   });
   assert.equal(p.interviews[0].status, "completed");
 });
+test("one-click creation is deduplicated and resumes chapters without regenerating completed lessons", async () => {
+  const input = { title: "Automatic chapters", company_url: "https://example.com", jd: "JavaScript and communication required for automatic chapter check.", days: 3, daily_minutes: 120 };
+  const results = await Promise.all([send("post", "/api/courses/create-and-generate", input), send("post", "/api/courses/create-and-generate", input)]);
+  assert.ok(results.every(r => r.status === 201), JSON.stringify(results.map(r => r.body)));
+  assert.equal(results[0].body.course.id, results[1].body.course.id);
+  assert.equal(results[0].body.job.id, results[1].body.job.id);
+  const id = results[0].body.course.id;
+  const jobId = results[0].body.job.id;
+  const job = (await collection("jobs").findOne({ _id: jobId }))!;
+  assert.equal(job.input_snapshot._include_lessons, true);
+  const { definitions } = await import("../src/jobs.js");
+  await definitions(job.input_snapshot)[0].run({ input: job.input_snapshot, outputs: {}, deadline: Date.now() + 1000, llm: {} as any });
+  await collection("jobs").updateOne({ _id: jobId }, { $set: { checkpoint: { generate_content: { kit: kit() } }, steps: job.steps.map((s: any) => ({ ...s, status: "completed" })) } });
+  const { lessonFixture } = await import("./fixture.js");
+  const { AppError } = await import("../src/errors.js");
+  const calls: Record<string, number> = {};
+  let fail = true;
+  const model: any = { json: async (schema: any, _instructions: string, data: any) => {
+    calls[data.requirement_id] = (calls[data.requirement_id] || 0) + 1;
+    if (fail && data.requirement_id === "r2") throw new AppError(422, "TEST_CHAPTER_FAILURE", "Test chapter failure");
+    return schema.parse(lessonFixture(data.requirement_id, data.requirement_id === "r1"));
+  }};
+  await workOne(model);
+  const failed = (await collection("jobs").findOne({ _id: jobId }))!;
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.checkpoint.lesson_0.requirement_id, "r1");
+  assert.equal((await send("post", "/api/jobs/" + jobId + "/retry", {})).status, 202);
+  fail = false;
+  await workOne(model);
+  const saved = (await collection("courses").findOne({ _id: id }))!;
+  assert.equal(saved.status, "ready");
+  assert.equal(saved.learning.lessons.length, 2);
+  assert.ok(saved.practice.plan.activities.length > 0);
+  assert.deepEqual(calls, { r1: 1, r2: 2 });
+  const p = (await send("get", "/api/courses/" + id + "/practice")).body;
+  assert.equal(p.missing_lesson_ids.length, 0);
+  assert.equal(p.learning_stale, false);
+});
+
 test("logout invalidates token and second account cannot see first account courses", async () => {
   assert.equal((await send("post", "/api/auth/logout", {})).status, 204);
   assert.equal((await send("get", "/api/auth/me")).status, 401);

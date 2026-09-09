@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { mockDraftCreation } from './generation-fixture';
 
 test('PDF upload extracts editable fields and saves the reviewed course', async ({ page, browser }) => {
   test.setTimeout(150000);
+  await mockDraftCreation(page);
   const response = await page.request.post('/api/auth/register', { headers: { Origin: 'http://localhost:3000' }, data: { name: 'PDF tester', email: `pdf-${Date.now()}@example.com`, password: 'pdf-test-password-123' } });
   expect(response.status()).toBe(201);
   const document = await browser.newPage();
@@ -16,16 +18,17 @@ test('PDF upload extracts editable fields and saves the reviewed course', async 
   }
   await page.goto('/courses/new');
   await page.getByRole('button', { name: 'Upload PDF', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Your current level', exact: true }).selectOption('beginner');
   await page.getByLabel('Job description PDF').setInputFiles({ name: 'job.pdf', mimeType: 'application/pdf', buffer: pdf });
   await expect(page.getByText(/PDF extracted/)).toBeVisible({ timeout: 125000 });
   await expect(page.getByLabel('Course name')).toHaveValue(/Frontend Engineer/i);
   await expect(page.getByRole('textbox', { name: /^Job description/ })).toHaveValue(/collaborate with designers/i);
   await expect(page.getByRole('textbox', { name: 'Company website', exact: true })).toHaveValue(/example.com/);
   await page.getByLabel('Course name').fill('Reviewed PDF course');
-  await page.getByRole('button', { name: 'Create course', exact: true }).click();
-  await page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Reviewed PDF course' }) }).click();
+  await page.getByRole('button', { name: 'Create and generate course', exact: true }).click();
   await expect(page).toHaveURL(/\/courses\/[0-9a-f-]+$/);
   await expect(page.getByLabel('Course name')).toHaveValue('Reviewed PDF course');
   await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Your current level', exact: true })).toHaveValue('beginner');
   await expect(page.getByRole('textbox', { name: /^Job description/ })).toHaveValue(/collaborate with designers/i);
 });

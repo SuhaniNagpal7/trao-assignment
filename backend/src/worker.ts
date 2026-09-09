@@ -5,7 +5,7 @@ import { settings } from "./config.js";
 import { OpenAI, type Llm } from "./provider.js";
 import { AppError, deadlineCheck, sleep } from "./errors.js";
 import { definitions, event, pipelineVersion } from "./jobs.js";
-import { mergeGenerated } from "./editing.js";
+import { mergeGenerated, equal } from "./editing.js";
 import { finishPractice } from "./practice.js";
 async function reserve(tokens: number, deadline: number) {
   if (tokens > settings.tpm)
@@ -124,7 +124,13 @@ export async function workOne(llm: Llm = new OpenAI(reserve)) {
         "PIPELINE_VERSION_CHANGED",
         "Start a new run for the current backend.",
       );
-    for (const def of definitions(job.input_snapshot)) {
+    for (let index = 0; ; index++) {
+      const available = definitions(job.input_snapshot, job.checkpoint);
+      if (index >= available.length) break;
+      for (const [position, item] of available.entries()) {
+        if (!job.steps.some((s: any) => s.key === item.key)) job.steps.push({ key: item.key, label: item.label, position, status: "pending", attempts: 0, started_at: null, finished_at: null });
+      }
+      const def = available[index];
       const step = job.steps.find((s: any) => s.key === def.key);
       if (step.status === "completed") continue;
       deadlineCheck(new Date(job.deadline_at).getTime());
@@ -193,6 +199,13 @@ export async function workOne(llm: Llm = new OpenAI(reserve)) {
           section || "all",
           job!.input_snapshot._base_kit,
         );
+        if (!section && job!.input_snapshot._include_lessons) {
+          const prepared = { ...c, ...changes };
+          if (!equal(prepared.kit.role, job!.checkpoint.generate_content.kit.role)) throw new AppError(409, "INPUTS_CHANGED", "Requirements changed while preparing chapters. Your edits were kept.");
+          await collection("users").updateOne({ _id: c.user_id }, { $inc: { planning_revision: 1 } }, { session });
+          const peers = await collection("courses").find({ user_id: c.user_id }, { session }).toArray();
+          changes = finishPractice(prepared, { _practice: { kind: "lessons" }, _base_kit: prepared.kit, _learner_profile: job!.input_snapshot.learner_profile }, job!.checkpoint, peers);
+        }
         changes.status = "ready";
       }
       delete changes._id;

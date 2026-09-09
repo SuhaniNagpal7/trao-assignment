@@ -21,7 +21,9 @@ test('register, save multiple courses, edit, import, refresh, and sign back in',
   await page.getByLabel('Job description').fill('Frontend engineer. Required: React, TypeScript and accessible interfaces.');
   await page.getByLabel('Days until interview').fill('14');
   await page.getByLabel('Study hours per day').fill('2');
-  await page.getByRole('button', { name: 'Create course', exact: true }).click();
+  await page.getByRole('button', { name: 'Create and generate course', exact: true }).click();
+  await expect(page).toHaveURL(/\/courses\/[0-9a-f-]+$/);
+  await page.getByRole('link', { name: 'All courses', exact: true }).click();
   const card = page.getByRole('link').filter({ has: page.getByRole('heading', { name: 'Frontend at Linear', exact: true }) });
   await expect(card).toBeVisible();
   await card.click();
@@ -35,7 +37,9 @@ test('register, save multiple courses, edit, import, refresh, and sign back in',
   await page.getByRole('link', { name: 'New course', exact: true }).click();
   await page.getByRole('button', { name: 'Import multiple' }).click();
   await page.getByLabel('Batch JSON file').setInputFiles({ name: 'cases.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify([{ id: 'backend-case', jd: 'Python and SQL required.', company_url: 'https://example.org', days: 7 }])) });
-  await page.getByRole('button', { name: 'Import courses' }).click();
+  await page.getByRole('button', { name: 'Import and generate courses' }).click();
+  await expect(page).toHaveURL(/\/courses\/[0-9a-f-]+$/);
+  await page.getByRole('link', { name: 'All courses', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'backend-case', exact: true })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: 'test-results/dashboard-desktop.png', fullPage: true });

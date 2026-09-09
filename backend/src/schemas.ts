@@ -1,3 +1,4 @@
+import { learnerProfile } from "./learner.js";
 import { z } from "zod";
 export const url = z
   .string()
@@ -31,6 +32,7 @@ export const courseInput = z
     jd: text.max(50000),
     days: z.number().int().min(1).max(60),
     daily_minutes: z.number().int().min(15).max(720).default(120),
+    learner_profile: learnerProfile.default({}),
     availability_scope: z.enum(["shared", "course"]).default("shared"),
   })
   .strict();

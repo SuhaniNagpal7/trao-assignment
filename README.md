@@ -105,6 +105,12 @@ Coverage is computed from requirement references. Only missing requirements are 
 
 Scheduling is deterministic: a greedy set cover selects must-have questions first, harder questions are allocated earlier, and integer durations fit the daily allowance. Exactly the requested number of days is emitted, with spaced review on spare days. Insufficient capacity for required work is an explicit error.
 
+## Learner assessment
+
+Course intake asks for current level, optional relevant experience and areas needing help. The practice screen adds familiarity ratings for the extracted JD topics. These estimates are stored separately from flashcard-review confidence.
+
+Beginner schedules reserve extra guided-practice time while retaining the required topics and day/time constraints. Practice plans also allocate extra time to topics marked new. Lessons receive the current profile and adapt explanations and examples to it; years of experience alone do not determine ability. Saving a changed profile preserves completed work, replans unfinished work when a plan exists, and marks previous lessons for refresh. In-flight lessons generated for an older profile cannot overwrite the updated profile's learning materials. Resume parsing is not part of this assessment-focused flow.
+
 ## Progress and weak spots
 
 The dashboard separates reviewed cards, cards marked confident, questions with submitted feedback, and completed scheduled activities. It does not combine these into an interview-readiness score. Unstarted courses and practice plans are labelled explicitly.
@@ -132,6 +138,8 @@ Flashcards prioritise unseen cards, then low confidence, oldest review and stabl
 Lessons teach essential concepts, worked examples, mistakes and readiness checks. Programming topics include a problem, starter code, hints, solution, line-by-line explanation and complexity. Coding drafts are saved; code is not executed in a sandbox.
 
 Feedback explains mistakes and correct reasoning. Live mock interview practice is interactive text: teaching mode explains answers immediately; simulation mode reserves feedback for the end. Conversations and attempts persist across refreshes. Voice/video generation remains outside the implemented feature set.
+
+New courses use **Create and generate course**: creation atomically queues the kit pipeline, then prepares every reading chapter (with coding exercises where relevant) and the practice plan. Progress and individual chapter checkpoints persist; retry resumes completed work, and opening a saved chapter makes no generation request. Batch imports use the same automatic flow.
 
 The dated practice planner includes reading, assignments, coding, flashcards, mock practice and optional resources. Shared courses use a common capacity budget; completed and manually moved activities remain fixed, and overload/backlog is visible. This planner extends rather than changes the exact Appendix A schedule.
 
@@ -167,3 +175,5 @@ It opens the source read-only and only inserts missing records into MongoDB. Run
 Legacy source backups and local databases are not required to build or run the application and are excluded from this repository.
 
 Public hosting remains pending. The walkthrough has been refreshed against the current stack and UI. Current checks passed: 46 backend tests, 15 browser checks, and five live evaluation cases in 192.602 seconds. No public deployment or assessment submission has been sent automatically.
+
+Question browsing uses populated role-topic sections (for example, campaign strategy or analytics) and hides empty categories. Role-skill generation includes domain requirements and uses role-appropriate scenarios; software system-design questions require an explicit matching technical requirement. Exported questions retain the assignment?s four category values.
