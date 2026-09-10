@@ -8,7 +8,8 @@ test('live feedback supports repeated submissions and reload without crashing', 
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`/courses/${course.id}/practice`);
-  await page.getByRole('tab', { name: 'Assignments', exact: true }).click();
+  await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+  await page.getByRole('button', { name: 'Exercises', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Get feedback', exact: true })).toBeDisabled();
   for (const answer of ['I ignore the exception.', 'I reproduce the issue, read the traceback and test a minimal fix.']) {
     await page.getByLabel('Your answer', { exact: true }).fill(answer);
@@ -21,7 +22,8 @@ test('live feedback supports repeated submissions and reload without crashing', 
     await expect(page.getByRole('button', { name: 'Get feedback', exact: true })).toBeEnabled();
   }
   await page.reload();
-  await page.getByRole('tab', { name: 'Assignments', exact: true }).click();
+  await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+  await page.getByRole('button', { name: 'Exercises', exact: true }).click();
   await expect(page.locator('.exercise-feedback').getByRole('heading', { name: 'A better approach' })).toBeVisible();
   const state = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();
   expect(state.history.filter((entry: { kind: string }) => entry.kind === 'feedback')).toHaveLength(2);

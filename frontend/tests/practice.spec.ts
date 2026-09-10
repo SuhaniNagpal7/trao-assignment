@@ -9,21 +9,27 @@ async function learning(page: Page) {
   return value;
 }
 
+async function practice(page: Page, view: 'Flashcards' | 'Exercises') {
+  await page.getByRole('tab', { name: 'Practice', exact: true }).click();
+  await page.getByRole('button', { name: view, exact: true }).click();
+}
+async function settings(page: Page) { await page.getByRole('button', { name: 'Settings', exact: true }).click(); }
+
 test('practice resumes flashcards, saves confidence, reading and coding drafts', async ({ page }) => {
   const { course } = await learning(page);
   await page.goto(`/courses/${course.id}`);
   await page.getByRole('link', { name: 'Start practicing', exact: true }).click();
-  await page.getByRole('tab', { name: 'Flashcards', exact: true }).click();
+  await practice(page, 'Flashcards');
   await page.getByRole('button', { name: 'Start review session' }).click();
   await expect(page.getByRole('heading', { name: 'What is a traceback?' })).toBeVisible();
   await page.reload();
-  await page.getByRole('tab', { name: 'Flashcards', exact: true }).click();
+  await practice(page, 'Flashcards');
   await expect(page.getByRole('heading', { name: 'What is a traceback?' })).toBeVisible();
   await page.getByRole('button', { name: 'Reveal answer' }).click();
   await expect(page.getByText('A report of the active call stack after an exception.')).toBeVisible();
   await page.getByRole('button', { name: 'Needs work', exact: true }).click();
   await expect(page.getByText('1 reviewed · 0 unseen', { exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await page.getByRole('tab', { name: 'Learn', exact: true }).click();
   await page.getByRole('button', { name: 'Mark reading complete' }).click();
   await expect(page.getByRole('button', { name: 'Reading completed' })).toBeDisabled();
   await page.getByRole('button', { name: 'Try the coding exercise' }).click();
@@ -33,12 +39,12 @@ test('practice resumes flashcards, saves confidence, reading and coding drafts',
   await page.getByText('Reveal the solution', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Line-by-line explanation' })).toBeVisible();
   await page.reload();
-  await page.getByRole('tab', { name: 'Assignments', exact: true }).click();
+  await practice(page, 'Exercises');
   await page.getByLabel('Choose an exercise').selectOption('code:r1');
   await expect(page.getByLabel('Your code', { exact: true })).toHaveValue('def counts(items):\n    return {} # my saved draft');
   await page.getByLabel('Your code', { exact: true }).fill('unsaved text kept when switching tabs');
-  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
-  await page.getByRole('tab', { name: 'Assignments', exact: true }).click();
+  await page.getByRole('tab', { name: 'Learn', exact: true }).click();
+  await practice(page, 'Exercises');
   await expect(page.getByLabel('Your code', { exact: true })).toHaveValue('unsaved text kept when switching tabs');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -49,9 +55,11 @@ test('practice resumes flashcards, saves confidence, reading and coding drafts',
 test('practice plan persists completion and shows insufficient capacity', async ({ page }) => {
   const { course } = await learning(page);
   await page.goto(`/courses/${course.id}/practice`);
+  await settings(page);
   await page.getByLabel('Days remaining').fill('1');
   await page.getByLabel('Minutes per day').fill('15');
   await page.getByRole('button', { name: 'Replan unfinished work' }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByText(/Required work needs/)).toBeVisible();
   const remaining = await page.getByRole('button', { name: 'Mark done', exact: true }).count() - 1;
   await page.getByRole('button', { name: 'Mark done', exact: true }).first().click();
@@ -66,8 +74,8 @@ test('practice rejects stale tab reviews and recovers with explicit reload', asy
   const second = await page.context().newPage();
   await page.goto(`/courses/${course.id}/practice`);
   await second.goto(`/courses/${course.id}/practice`);
-  await page.getByRole('tab', { name: 'Flashcards', exact: true }).click();
-  await second.getByRole('tab', { name: 'Flashcards', exact: true }).click();
+  await practice(page, 'Flashcards');
+  await practice(second, 'Flashcards');
   await page.getByRole('button', { name: 'Start review session' }).click();
   await second.getByRole('button', { name: 'Start review session' }).click();
   await expect(second.getByRole('main').getByRole('alert')).toContainText('Practice changed in another tab');
@@ -91,13 +99,13 @@ test('live Gemini lessons, answer feedback and interactive interview persist', a
     await expect(page.getByText(/Preparing ·/)).toHaveCount(0, { timeout: 10000 });
   }
   await idle();
-  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await page.getByRole('tab', { name: 'Learn', exact: true }).click();
   await expect(page.getByLabel('Choose a lesson')).toBeVisible();
   let state = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();
   expect(state.learning.lessons).toHaveLength(2);
   expect(state.missing_lesson_ids).toEqual([]);
   expect(state.learning.lessons.some((l: { coding: unknown }) => !!l.coding)).toBeTruthy();
-  await page.getByRole('tab', { name: 'Assignments', exact: true }).click();
+  await practice(page, 'Exercises');
   await page.getByLabel('Your answer', { exact: true }).fill('I ignore every exception and hope the error goes away.');
   await page.getByRole('button', { name: 'Get feedback' }).click();
   await idle();

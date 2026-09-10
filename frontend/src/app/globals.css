@@ -593,6 +593,19 @@ select[multiple] { min-height: 110px; }
 .practice-job, .practice-error { padding: 18px 22px; margin: 18px 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: .84rem; }
 .practice-job p { margin: 8px 0; }
 
+/* ---------- practice: interview head + focus areas ---------- */
+.generation-heading-title { display: flex; align-items: center; gap: 10px; }
+.generation-heading-title svg { color: var(--accent-strong); flex-shrink: 0; }
+.focus-areas { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; }
+.focus-areas > summary {
+  cursor: pointer; list-style: none; font-size: 1.02rem; font-weight: 600; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.focus-areas > summary::-webkit-details-marker { display: none; }
+.focus-areas > summary::before { content: "▸"; color: var(--muted); font-size: .8rem; transition: transform .15s; }
+.focus-areas[open] > summary::before { transform: rotate(90deg); }
+.focus-areas .weak-grid { margin-top: 16px; }
+
 /* ---------- weak spots ---------- */
 .weak-intro { margin: 12px 0 24px; max-width: 720px; font-size: .86rem; }
 .weak-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -623,6 +636,33 @@ select[multiple] { min-height: 110px; }
 .auth-form input { padding: 11px 12px; }
 .auth-switch { text-align: center; padding-top: 16px; font-size: .82rem; color: var(--muted); }
 .auth-switch button { color: var(--accent-strong); font-weight: 600; margin-left: 4px; }
+/* Short viewports (landscape phones, small windows) — keep the form on screen. */
+@media (max-height: 760px) {
+  .auth-layout { justify-content: flex-start; gap: 14px; padding: 18px; }
+}
+@media (max-height: 680px) {
+  .auth-story { display: none; }
+  .auth-panel { padding: 20px 22px; box-shadow: var(--shadow-sm); }
+  .auth-form h2 { font-size: 1.15rem; margin-bottom: 3px; }
+  .auth-form > p:not(.auth-switch) { display: none; }
+  .auth-form form { margin-top: 12px; }
+  .auth-form label { margin-bottom: 8px; font-size: .76rem; }
+  .auth-form input { margin-top: 4px; padding: 8px 10px; }
+  .auth-form .error { margin: 6px 0; padding: 6px 10px; font-size: .76rem; }
+  .auth-form .primary { padding: 8px 14px; }
+  .auth-switch { padding-top: 8px; }
+}
+@media (max-height: 460px) {
+  .auth-layout { padding: 8px; }
+  .auth-panel { border: 0; padding: 10px 14px; box-shadow: none; }
+  .auth-form h2 { font-size: 1rem; margin-bottom: 2px; }
+  .auth-form form { margin-top: 7px; }
+  .auth-form label { margin-bottom: 3px; font-size: .72rem; }
+  .auth-form input { margin-top: 2px; padding: 5px 9px; }
+  .auth-form .error { margin: 4px 0; padding: 4px 9px; font-size: .72rem; }
+  .auth-form .primary { padding: 6px 12px; }
+  .auth-switch { padding-top: 4px; font-size: .74rem; }
+}
 
 /* ---------- standalone (loading / error) ---------- */
 .standalone { max-width: 560px; margin: 22vh auto; padding: 32px; text-align: center; }

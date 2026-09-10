@@ -75,7 +75,7 @@ test('schedule regeneration preserves edited day and unrelated content', async (
   await saved(page);
   await page.getByLabel('Section to regenerate', { exact: true }).selectOption('schedule');
   await page.getByRole('button', { name: 'Regenerate section', exact: true }).click();
-  await expect(page.getByText('2 of 2 steps complete', { exact: true })).toBeVisible({ timeout: 15000 });
+  await expect.poll(async () => (await (await page.request.get(`/api/courses/${course.id}/jobs`)).json()).jobs[0]?.status, { timeout: 20000, intervals: [1000] }).toBe('completed');
   await page.reload();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByLabel('Company summary', { exact: true })).toHaveValue('My protected overview');

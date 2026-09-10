@@ -71,14 +71,14 @@ test('live Gemini generates a persisted course visible after refresh', async ({ 
   let generationRequests = 0;
   page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/generate')) generationRequests++; });
   await page.goto(`/courses/${course.id}/practice`);
-  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await page.getByRole('tab', { name: 'Learn', exact: true }).click();
   await expect(page.getByText('All chapters saved and ready to read')).toBeVisible();
   for (const lesson of practice.learning.lessons) {
     await page.getByLabel('Choose a lesson', { exact: true }).selectOption(lesson.requirement_id);
     await expect(page.locator('.reading-lesson h2')).toHaveText(lesson.title);
   }
   await page.reload();
-  await page.getByRole('tab', { name: 'Reading', exact: true }).click();
+  await page.getByRole('tab', { name: 'Learn', exact: true }).click();
   await expect(page.getByText('All chapters saved and ready to read')).toBeVisible();
   expect(generationRequests).toBe(0);
   const restoredPractice = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();
