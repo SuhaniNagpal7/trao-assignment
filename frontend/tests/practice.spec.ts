@@ -9,7 +9,7 @@ async function learning(page: Page) {
   return value;
 }
 
-async function practice(page: Page, view: 'Flashcards' | 'Exercises') {
+async function practice(page: Page, view: 'Flashcards' | 'Questions') {
   await page.getByRole('tab', { name: 'Practice', exact: true }).click();
   await page.getByRole('button', { name: view, exact: true }).click();
 }
@@ -39,12 +39,12 @@ test('practice resumes flashcards, saves confidence, reading and coding drafts',
   await page.getByText('Reveal the solution', { exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Line-by-line explanation' })).toBeVisible();
   await page.reload();
-  await practice(page, 'Exercises');
-  await page.getByLabel('Choose an exercise').selectOption('code:r1');
+  await practice(page, 'Questions');
+  await page.getByLabel('Choose a question').selectOption('code:r1');
   await expect(page.getByLabel('Your code', { exact: true })).toHaveValue('def counts(items):\n    return {} # my saved draft');
   await page.getByLabel('Your code', { exact: true }).fill('unsaved text kept when switching tabs');
   await page.getByRole('tab', { name: 'Learn', exact: true }).click();
-  await practice(page, 'Exercises');
+  await practice(page, 'Questions');
   await expect(page.getByLabel('Your code', { exact: true })).toHaveValue('unsaved text kept when switching tabs');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -105,7 +105,7 @@ test('live Gemini lessons, answer feedback and interactive interview persist', a
   expect(state.learning.lessons).toHaveLength(2);
   expect(state.missing_lesson_ids).toEqual([]);
   expect(state.learning.lessons.some((l: { coding: unknown }) => !!l.coding)).toBeTruthy();
-  await practice(page, 'Exercises');
+  await practice(page, 'Questions');
   await page.getByLabel('Your answer', { exact: true }).fill('I ignore every exception and hope the error goes away.');
   await page.getByRole('button', { name: 'Get feedback' }).click();
   await idle();

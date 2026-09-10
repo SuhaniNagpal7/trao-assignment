@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, BookOpen, Code2, MessageCircle, Settings } from 'lucide-react';
 import { api, Auth, Course } from '@/lib/api';
+import { questionSections } from '@/lib/question-sections';
 import Shell from './shell';
 import Drawer from './drawer';
 
@@ -42,7 +43,7 @@ export default function PracticeWorkspace({ auth, id }: { auth: Auth; id: string
   const [data, setData] = useState<Practice | null>(null);
   const current = useRef<Practice | null>(null);
   const [tab, setTab] = useState('Today');
-  const [practiceView, setPracticeView] = useState<'flashcards' | 'exercises'>('flashcards');
+  const [practiceView, setPracticeView] = useState<'flashcards' | 'questions'>('flashcards');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -94,9 +95,21 @@ export default function PracticeWorkspace({ auth, id }: { auth: Auth; id: string
   const coding = lessons.filter(l => l.coding);
   const exercises = [...(course?.kit?.questions || []).map(q => ({ id: 'answer:' + q.id, title: q.prompt, problem: q.prompt, coding: undefined as Coding | undefined, answer: q.answer_outline })), ...coding.map(l => ({ id: 'code:' + l.requirement_id, title: l.coding!.title, problem: l.coding!.problem, coding: l.coding!, answer: '' }))];
   const exercise = exercises.find(x => x.id === exerciseId) || exercises[0];
+  // Group questions by role topic / category for the picker, with coding last.
+  const questionGroups: { label: string; items: { id: string; label: string }[] }[] = [];
+  if (course?.kit) {
+    const seen = new Set<string>();
+    for (const section of questionSections(course.kit)) {
+      questionGroups.push({ label: section.label, items: section.questionIds.map(qid => ({ id: 'answer:' + qid, label: course.kit!.questions.find(q => q.id === qid)!.prompt })) });
+      section.questionIds.forEach(qid => seen.add(qid));
+    }
+    const rest = course.kit.questions.filter(q => !seen.has(q.id));
+    if (rest.length) questionGroups.push({ label: 'Other questions', items: rest.map(q => ({ id: 'answer:' + q.id, label: q.prompt })) });
+    if (coding.length) questionGroups.push({ label: 'Coding practice', items: coding.map(l => ({ id: 'code:' + l.requirement_id, label: l.coding!.title })) });
+  }
   const interview = data?.interviews.find(i => i.id === interviewId) || data?.interviews[0];
   const plan = data?.state.plan;
-  const openExercise = (exId: string) => { setExerciseId(exId); setTab('Practice'); setPracticeView('exercises'); };
+  const openExercise = (exId: string) => { setExerciseId(exId); setTab('Practice'); setPracticeView('questions'); };
   function openActivity(a: Activity) {
     if (a.kind === 'reading') { setLessonId(a.id.replace('read:', '')); setTab('Learn'); }
     else if (['coding', 'assignment'].includes(a.kind)) openExercise(a.id);
@@ -142,14 +155,14 @@ export default function PracticeWorkspace({ auth, id }: { auth: Auth; id: string
         {tab === 'Practice' && <>
           <div className="segmented" role="group" aria-label="Practice type">
             <button type="button" aria-pressed={practiceView === 'flashcards'} onClick={() => setPracticeView('flashcards')}>Flashcards</button>
-            <button type="button" aria-pressed={practiceView === 'exercises'} onClick={() => setPracticeView('exercises')}>Exercises</button>
+            <button type="button" aria-pressed={practiceView === 'questions'} onClick={() => setPracticeView('questions')}>Questions</button>
           </div>
 
           {practiceView === 'flashcards' && <><div className="generation-heading"><h2>Recall, then reveal</h2><span className="badge">{data.summary.reviewed} reviewed · {data.summary.total - data.summary.reviewed} unseen</span></div><p className="field-help">Unseen cards first, then lower confidence, oldest review and stable ID. Confidence is your self-assessment, not an exam score.</p><p className="confidence-summary">Needs work: {data.summary.confidence['1']} · Developing: {data.summary.confidence['2']} · Confident: {data.summary.confidence['3']}</p>
             {!card ? <div className="practice-empty"><h3>{data.summary.total ? 'Ready for a review?' : 'No flashcards yet'}</h3><p>{data.summary.total ? 'A new session prioritises what you have not seen and what feels less familiar.' : 'Add flashcards in the course editor to begin.'}</p><button className="primary" disabled={busy || !data.summary.total} onClick={() => void command('session').then(() => setRevealed(false))}>Start review session</button></div> : <article className="recall-card"><span className="eyebrow">{data.state.session?.queue?.length} CARDS LEFT IN THIS SESSION</span><h2>{card.front}</h2>{!revealed ? <button className="primary" onClick={() => setRevealed(true)}>Reveal answer</button> : <><p className="study-answer">{card.back}</p><p>How confident do you feel?</p><div className="editor-actions">{['Needs work', 'Developing', 'Confident'].map((label, i) => <button className="secondary" key={label} disabled={busy} onClick={() => void command('review', { item_id: card.id, confidence: i + 1 }).then(ok => { if (ok) setRevealed(false); })}>{label}</button>)}</div></>}{coding.filter(l => card.requirement_ids.includes(l.requirement_id)).map(l => <button key={l.requirement_id} className="text-link" onClick={() => openExercise('code:' + l.requirement_id)}><Code2 size={15} /> Practise this in code</button>)}</article>}
             <details><summary>Review history</summary>{data.history.filter(h => h.kind === 'review').map(h => <p key={h.id}>{new Date(h.created_at).toLocaleString()} · {course.kit?.flashcards.find(c => c.id === h.payload.command?.item_id)?.front || 'Previous card'} · Confidence {h.payload.command?.confidence}/3</p>)}</details></>}
 
-          {practiceView === 'exercises' && <><h2>Try it, then learn from it</h2><p>Write your approach or code. The coach will explain what to improve and why.</p>{exercise ? <><label>Choose an exercise<select aria-label="Choose an exercise" value={exercise.id} onChange={e => setExerciseId(e.target.value)}>{exercises.map(x => <option key={x.id} value={x.id}>{x.coding ? 'Code: ' : ''}{x.title}</option>)}</select></label><Exercise key={exercise.id} identity={exercise.id} title={exercise.title} problem={exercise.problem} coding={exercise.coding} saved={data.state.drafts?.[exercise.id] || ''} cache={draftCache.current} feedback={data.state.feedback?.[exercise.id]} busy={busy || active} onSave={(item_id, text) => command('draft', { item_id, text })} onSubmit={(item_id, text) => generate('feedback', { item_id, text })} />{exercise.answer && <details><summary>Reveal the answer and approach</summary><p className="study-answer">{exercise.answer}</p></details>}</> : <p>Add questions or generate reading materials to practise an exercise.</p>}<details><summary>Saved attempts</summary>{data.history.filter(h => h.kind === 'feedback').map(h => <article key={h.id}><p>{new Date(h.created_at).toLocaleString()} · {h.payload.item_id}</p><pre>{h.payload.answer}</pre>{h.payload.feedback && <FeedbackView feedback={h.payload.feedback} />}</article>)}</details></>}
+          {practiceView === 'questions' && <><h2>Try it, then learn from it</h2><p>Pick a question, write your answer, and the coach explains what to improve and why. Coding topics open in an editor.</p>{exercise ? <><label>Choose a question<select aria-label="Choose a question" value={exercise.id} onChange={e => setExerciseId(e.target.value)}>{questionGroups.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(it => <option key={it.id} value={it.id}>{it.label}</option>)}</optgroup>)}</select></label><Exercise key={exercise.id} identity={exercise.id} title={exercise.title} problem={exercise.problem} coding={exercise.coding} saved={data.state.drafts?.[exercise.id] || ''} cache={draftCache.current} feedback={data.state.feedback?.[exercise.id]} busy={busy || active} onSave={(item_id, text) => command('draft', { item_id, text })} onSubmit={(item_id, text) => generate('feedback', { item_id, text })} />{exercise.answer && <details><summary>Reveal the answer and approach</summary><p className="study-answer">{exercise.answer}</p></details>}</> : <p>Add questions or generate reading materials to practise.</p>}<details><summary>Saved attempts</summary>{data.history.filter(h => h.kind === 'feedback').map(h => <article key={h.id}><p>{new Date(h.created_at).toLocaleString()} · {h.payload.item_id}</p><pre>{h.payload.answer}</pre>{h.payload.feedback && <FeedbackView feedback={h.payload.feedback} />}</article>)}</details></>}
         </>}
 
         {tab === 'Interview' && <><div className="generation-heading"><div className="generation-heading-title"><MessageCircle size={20} /><h2>Live interview practice</h2></div><span className="badge">Interactive text</span></div><p>Answer in your own words, ask follow-up questions, and practise with a coach that responds to you.</p><p className="field-help">Session length is an approximate question budget (one answer per three minutes). Leave and resume without losing your conversation.</p>

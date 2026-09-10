@@ -64,7 +64,7 @@ test('record the real application walkthrough', async ({ browser, request }) => 
   await caption('The practice planner preserves completed work, shares time across courses and shows shortfalls instead of promising an impossible workload.', 15);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('tab', { name: 'Practice', exact: true }).click();
-  await page.getByRole('button', { name: 'Exercises', exact: true }).click();
+  await page.getByRole('button', { name: 'Questions', exact: true }).click();
   await caption('Assignments save your draft and can explain mistakes with AI feedback. Coding exercises and live text interviews extend the required flashcard flow.', 12);
   await page.goto('/');
   await caption('Preparation progress is stored per course. The reviewed-card percentage does not pretend to measure mastery or interview readiness.', 12);
