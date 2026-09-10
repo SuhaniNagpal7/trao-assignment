@@ -95,8 +95,10 @@ test('polling reconnects and restores saved logs after refresh', async ({ page }
   await page.getByRole('button', { name: 'Start generation', exact: true }).click();
   await expect(page.getByText(/Connection interrupted/)).toBeVisible();
   await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible({ timeout: 20000 });
+  await page.getByRole('button', { name: /Activity log/ }).click();
   await expect(page.locator('.generation-logs li')).toHaveCount(8, { timeout: 20000 });
   await page.reload();
+  await page.getByRole('button', { name: /Activity log/ }).click();
   await expect(page.locator('.generation-logs li')).toHaveCount(8);
   await expect(page.getByText(/Connection interrupted/)).toHaveCount(0);
   expect(interrupted).toBeGreaterThanOrEqual(4);

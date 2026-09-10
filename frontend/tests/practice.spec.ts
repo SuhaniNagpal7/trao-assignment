@@ -12,7 +12,7 @@ async function learning(page: Page) {
 test('practice resumes flashcards, saves confidence, reading and coding drafts', async ({ page }) => {
   const { course } = await learning(page);
   await page.goto(`/courses/${course.id}`);
-  await page.getByRole('link', { name: 'Open practice', exact: true }).click();
+  await page.getByRole('link', { name: 'Start practicing', exact: true }).click();
   await page.getByRole('tab', { name: 'Flashcards', exact: true }).click();
   await page.getByRole('button', { name: 'Start review session' }).click();
   await expect(page.getByRole('heading', { name: 'What is a traceback?' })).toBeVisible();

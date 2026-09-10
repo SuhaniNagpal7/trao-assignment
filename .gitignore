@@ -16,6 +16,11 @@ test-results/
 output/
 backend/dist/
 
+# Next.js 16 auto-generated agent rule files
+frontend/AGENTS.md
+frontend/CLAUDE.md
+image.png
+
 # Local assignment documents and working notes
 /assignment.md
 /plan.md

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Circle, Loader2, Play, RotateCcw } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Circle, Loader2, Play, RotateCcw } from 'lucide-react';
 import { api, Course } from '@/lib/api';
 import ResearchResults from './research-results';
 import type { ComponentProps } from 'react';
@@ -22,6 +22,7 @@ export default function GenerationPanel({ course, csrf, onUpdate }: { course: Co
   const [error, setError] = useState('');
   const [connectionError, setConnectionError] = useState('');
   const [pollRevision, setPollRevision] = useState(0);
+  const [showLog, setShowLog] = useState(false);
   const requestKey = useRef<string | null>(null);
   const updateRef = useRef(onUpdate);
   updateRef.current = onUpdate;
@@ -104,7 +105,12 @@ export default function GenerationPanel({ course, csrf, onUpdate }: { course: Co
         {job.error && <p className={job.status === 'blocked' ? 'generation-intro-note' : 'error'} role="status">{job.error.message}</p>}
         <ResearchResults research={job.research} />
         {!currentRun && <p className="generation-intro-note">These logs are from earlier inputs. Start a new run to use your saved changes.</p>}
-        <details className="generation-logs" open><summary>Activity log <span>{events.length} events</span></summary><ol>{events.map(event => <li key={event.id} className={event.level}><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleTimeString()}</time><span>{event.message}</span></li>)}</ol></details>
+        <div className="generation-logs">
+          <button type="button" className="log-toggle" aria-expanded={showLog} onClick={() => setShowLog(v => !v)}>
+            <ChevronRight size={16} /> Activity log <span className="count">{events.length}</span>
+          </button>
+          {showLog && <ol>{events.map(event => <li key={event.id} className={event.level}><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleTimeString()}</time><span>{event.message}</span></li>)}{!events.length && <li><span>No events yet.</span></li>}</ol>}
+        </div>
       </>}
       {connectionError && <p className="generation-intro-note" role="status">{connectionError}</p>}
       {error && <p className="error" role="alert">{error}</p>}

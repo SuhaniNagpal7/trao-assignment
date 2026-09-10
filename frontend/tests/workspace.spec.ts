@@ -59,9 +59,11 @@ test('register, save multiple courses, edit, import, refresh, and sign back in',
   await page.reload();
   await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Job analysis needs a configured Gemini provider. Ask the administrator to configure GEMINI_API_KEY, then retry this run.', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: /Activity log/ }).click();
   const history = page.locator('.generation-logs li');
   await expect(history).toHaveCount(8);
   await page.reload();
+  await page.getByRole('button', { name: /Activity log/ }).click();
   await expect(history).toHaveCount(8);
   await expect(page.getByText('2 of 17 steps complete', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/generation-progress.png', fullPage: true });

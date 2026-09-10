@@ -32,12 +32,14 @@ test('live Gemini generates a persisted course visible after refresh', async ({ 
     if (job.status === 'completed') break;
     await page.waitForTimeout(3000);
   }
-  await expect(page.getByRole('heading', { name: 'Ready to prepare' })).toBeVisible({ timeout: 10000 });
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Start practicing', exact: true })).toBeVisible({ timeout: 10000 });
   if (process.env.RUN_LIVE_TAVILY === '1') {
     const jobs = (await (await page.request.get(`/api/courses/${course.id}/jobs`)).json()).jobs;
     const sources = jobs[0].research.search_interviews.sources;
     expect(sources.length).toBeGreaterThan(0);
     expect(sources.every((source: { text: string; kind: string }) => source.text.length > 0 && source.kind === 'anecdotal_search_snippet')).toBeTruthy();
+    await page.getByRole('button', { name: 'Generation', exact: true }).click();
     await page.locator('summary').filter({ hasText: 'Interview experiences' }).click();
     await expect(page.locator('.research-results a').filter({ hasText: new URL(sources[0].url).hostname }).first()).toBeVisible();
     await page.reload();
@@ -52,14 +54,14 @@ test('live Gemini generates a persisted course visible after refresh', async ({ 
   expect(saved.kit.coverage.uncovered_requirement_ids).toEqual([]);
   expect(saved.kit.schedule.days).toHaveLength(14);
   expect(saved.kit.schedule.days.every((day: { minutes: number }) => day.minutes <= 120)).toBeTruthy();
-  await page.getByRole('tab', { name: 'Questions', exact: true }).click();
+  await page.getByRole('tab', { name: 'Schedule', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Day 1', exact: true })).toBeVisible();
   await page.locator('.study-question summary').first().click();
   await expect(page.getByRole('heading', { name: 'How to approach it' }).first()).toBeVisible();
-  await page.getByRole('tab', { name: 'Daily plan', exact: true }).click();
   await page.getByLabel('Study day', { exact: true }).selectOption('14');
   await expect(page.getByRole('heading', { name: 'Day 14', exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Ready to prepare' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Start practicing', exact: true })).toBeVisible();
   const reloaded = (await (await page.request.get(`/api/courses/${course.id}`)).json()).course;
   expect(reloaded.kit).toEqual(saved.kit);
   const practice = await (await page.request.get(`/api/courses/${course.id}/practice`)).json();

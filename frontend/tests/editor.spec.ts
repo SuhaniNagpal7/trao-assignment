@@ -6,7 +6,7 @@ async function saved(page: Page) { await expect(page.getByText('All changes save
 test('editor autosaves additions, edits, moves, pins and deletion gaps through refresh', async ({ page }) => {
   const { course } = await seed(page);
   await page.goto(`/courses/${course.id}`);
-  await page.getByRole('button', { name: 'Edit course', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('Company summary', { exact: true }).fill('My company preparation notes.');
   await saved(page);
   await page.getByRole('tab', { name: 'Questions', exact: true }).click();
@@ -33,7 +33,7 @@ test('editor autosaves additions, edits, moves, pins and deletion gaps through r
   await card.getByLabel('Back', { exact: true }).fill('My clear explanation.');
   await saved(page);
   await page.reload();
-  await page.getByRole('button', { name: 'Edit course', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByLabel('Company summary', { exact: true })).toHaveValue('My company preparation notes.');
   await page.getByRole('tab', { name: 'Questions', exact: true }).click();
   first = page.getByRole('article', { name: 'Question 1', exact: true });
@@ -53,7 +53,7 @@ test('stale-tab conflict keeps local draft until explicit reload', async ({ page
   const second = await page.context().newPage();
   for (const tab of [page, second]) {
     await tab.goto(`/courses/${course.id}`);
-    await tab.getByRole('button', { name: 'Edit course', exact: true }).click();
+    await tab.getByRole('button', { name: 'Edit', exact: true }).click();
   }
   await page.getByLabel('Company summary', { exact: true }).fill('Saved in first tab');
   await saved(page);
@@ -68,7 +68,7 @@ test('stale-tab conflict keeps local draft until explicit reload', async ({ page
 test('schedule regeneration preserves edited day and unrelated content', async ({ page }) => {
   const { course } = await seed(page);
   await page.goto(`/courses/${course.id}`);
-  await page.getByRole('button', { name: 'Edit course', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByLabel('Company summary', { exact: true }).fill('My protected overview');
   await page.getByRole('tab', { name: 'Daily plan', exact: true }).click();
   await page.getByLabel('Day focus', { exact: true }).first().fill('My custom rehearsal day');
@@ -77,7 +77,7 @@ test('schedule regeneration preserves edited day and unrelated content', async (
   await page.getByRole('button', { name: 'Regenerate section', exact: true }).click();
   await expect(page.getByText('2 of 2 steps complete', { exact: true })).toBeVisible({ timeout: 15000 });
   await page.reload();
-  await page.getByRole('button', { name: 'Edit course', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByLabel('Company summary', { exact: true })).toHaveValue('My protected overview');
   await page.getByRole('tab', { name: 'Daily plan', exact: true }).click();
   await expect(page.getByLabel('Day focus', { exact: true }).first()).toHaveValue('My custom rehearsal day');
@@ -104,5 +104,5 @@ test('live category regeneration preserves edits made during the provider reques
   expect(current.kit.questions.some((q: { id: string }) => q.id === 'manual-live')).toBeTruthy();
   expect(current.kit.questions.length).toBeGreaterThanOrEqual(3);
   await page.goto(`/courses/${course.id}`);
-  await expect(page.getByRole('heading', { name: 'Ready to prepare' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Start practicing', exact: true })).toBeVisible();
 });
